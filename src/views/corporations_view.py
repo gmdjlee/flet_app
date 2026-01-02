@@ -520,9 +520,9 @@ class CorporationsView(ft.View):
         if self.on_corporation_select:
             self.on_corporation_select(corporation)
         else:
-            # Navigate to detail view (placeholder)
-            print(f"Selected: {corporation.corp_name} ({corporation.corp_code})")
-            # self.page.go(f"/corporations/{corporation.corp_code}")
+            # Navigate to detail view
+            if self._page_ref:
+                self._page_ref.go(f"/detail/{corporation.corp_code}")
 
     def refresh(self) -> None:
         """Refresh the corporation list."""
