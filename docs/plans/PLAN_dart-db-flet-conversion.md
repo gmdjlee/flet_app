@@ -2,7 +2,7 @@
 
 **Status**: 🔄 In Progress
 **Started**: 2026-01-02
-**Last Updated**: 2026-01-02 (Phase 1 completed)
+**Last Updated**: 2026-01-02 (Phase 2 completed)
 **Estimated Completion**: 2026-01-20
 
 **Framework**: Flet 0.8+
@@ -310,54 +310,53 @@ flet run src/main.py
 ### Phase 2: DART 서비스 및 기업 데이터 연동
 **Goal**: dart-fss 연동, 기업 목록 수집/저장, 기본 기업 검색
 **Estimated Time**: 4 hours
-**Status**: ⏳ Pending
+**Status**: ✅ Completed
 
 #### Tasks
 
 **🔴 RED: Write Failing Tests First**
-- [ ] **Test 2.1**: DART 서비스 테스트
+- [x] **Test 2.1**: DART 서비스 테스트
   - File: `tests/unit/test_dart_service.py`
-  - Test cases:
-    ```python
-    class TestDartService:
-        @pytest.mark.asyncio
-        async def test_get_corporation_list(self, mock_dart_api):
-            service = DartService(api=mock_dart_api)
-            corps = await service.get_corporation_list()
-            assert len(corps) > 0
+  - Test cases: 12 tests covering API key validation, corporation list, info, financial statements, search
 
-        def test_api_key_required(self):
-            with pytest.raises(ValueError):
-                DartService(api_key=None)
-    ```
-
-- [ ] **Test 2.2**: Corporation 서비스 테스트
+- [x] **Test 2.2**: Corporation 서비스 테스트
   - File: `tests/unit/test_corporation_service.py`
-  - Test cases: 검색, 필터링, 페이지네이션
+  - Test cases: 20 tests covering CRUD, search, pagination, filtering, statistics
 
 **🟢 GREEN: Implement to Make Tests Pass**
-- [ ] **Task 2.3**: DART 서비스 구현
+- [x] **Task 2.3**: DART 서비스 구현
   - File: `src/services/dart_service.py`
-  - dart-fss 라이브러리 래핑
+  - dart-fss 라이브러리 래핑, 비동기 API 호출, 검증 로직
 
-- [ ] **Task 2.4**: Corporation 서비스 구현
+- [x] **Task 2.4**: Corporation 서비스 구현
   - File: `src/services/corporation_service.py`
-  - 기업 검색, 목록 조회
+  - 기업 CRUD, 검색, 필터링, 페이지네이션, 통계
 
-- [ ] **Task 2.5**: 데이터 동기화 로직
+- [x] **Task 2.5**: 데이터 동기화 로직
   - File: `src/services/sync_service.py`
-  - DART → SQLite 동기화
+  - DART → SQLite 동기화, 진행률 콜백, 재시도 로직
 
 **🔵 REFACTOR: Clean Up Code**
-- [ ] **Task 2.6**: 캐싱 적용 (diskcache)
-- [ ] **Task 2.7**: 에러 핸들링 강화
+- [x] **Task 2.6**: 캐싱 적용 (diskcache)
+  - File: `src/utils/cache.py`
+  - CacheManager 클래스, 기업/재무 데이터 캐싱
+- [x] **Task 2.7**: 에러 핸들링 강화
+  - File: `src/utils/errors.py`
+  - 커스텀 예외 클래스 계층, ErrorHandler 컨텍스트 매니저
 
 #### Quality Gate ✋
 
+**TDD Compliance**:
+- [x] Tests written FIRST and initially failed
+- [x] Production code written to make tests pass
+- [x] All 51 tests passing
+
 **Build & Tests**:
-- [ ] DART API 연결 테스트 (mock)
-- [ ] 기업 데이터 CRUD 동작
-- [ ] `pytest tests/unit/test_dart_service.py -v` 통과
+- [x] DART API 연결 테스트 (mock) - 12 tests
+- [x] 기업 데이터 CRUD 동작 - 20 tests
+- [x] `pytest tests/unit/test_dart_service.py -v` 통과
+- [x] `ruff check src/` 통과
+- [x] `black --check src/` 통과
 
 ---
 
@@ -625,7 +624,7 @@ git reset --hard HEAD~n
 
 ### Completion Status
 - **Phase 1 (프로젝트 기반)**: ✅ 100%
-- **Phase 2 (DART 연동)**: ⏳ 0%
+- **Phase 2 (DART 연동)**: ✅ 100%
 - **Phase 3 (기업 목록 UI)**: ⏳ 0%
 - **Phase 4 (기업 상세)**: ⏳ 0%
 - **Phase 5 (차트/분석)**: ⏳ 0%
@@ -633,13 +632,13 @@ git reset --hard HEAD~n
 - **Phase 7 (데이터 수집)**: ⏳ 0%
 - **Phase 8 (빌드/배포)**: ⏳ 0%
 
-**Overall Progress**: 12.5% complete (1/8 phases)
+**Overall Progress**: 25% complete (2/8 phases)
 
 ### Time Tracking
 | Phase | Estimated | Actual | Variance |
 |-------|-----------|--------|----------|
 | Phase 1 | 4 hours | ~2 hours | -2 hours |
-| Phase 2 | 4 hours | - | - |
+| Phase 2 | 4 hours | ~1 hour | -3 hours |
 | Phase 3 | 4 hours | - | - |
 | Phase 4 | 4 hours | - | - |
 | Phase 5 | 4 hours | - | - |
@@ -651,9 +650,9 @@ git reset --hard HEAD~n
 ### Platform Testing Status
 | Platform | Phase 1 | Phase 2 | Phase 3 | Phase 4 | Phase 5 | Phase 6 | Phase 7 | Phase 8 |
 |----------|---------|---------|---------|---------|---------|---------|---------|---------|
-| Windows | ✅ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ |
-| macOS | ✅ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ |
-| Web | ✅ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ |
+| Windows | ✅ | ✅ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ |
+| macOS | ✅ | ✅ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ |
+| Web | ✅ | ✅ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ |
 
 ---
 
@@ -674,6 +673,14 @@ git reset --hard HEAD~n
 - Flet Page mock 테스트 시 `window` 속성도 MagicMock으로 설정 필요
 - Python 3.11+에서 `Optional[X]` 대신 `X | None` 사용 권장 (ruff UP045)
 - `typing.Dict` 대신 `dict` 사용 권장 (ruff UP006)
+- `typing.Callable` 대신 `collections.abc.Callable` 사용 권장 (ruff UP035)
+- dict comprehension `{k: v for k, v in items}` 는 `dict(items)` 로 간소화 가능 (ruff C416)
+
+### Phase 2 Learnings
+- dart-fss 라이브러리는 동기 API이므로 `asyncio.run_in_executor`로 래핑 필요
+- SyncService에서 진행률 콜백과 취소 기능은 UI 연동에 필수
+- diskcache의 FanoutCache는 멀티프로세스 환경에 적합하지만, 단일 프로세스에서는 Cache로 충분
+- 커스텀 예외 클래스 계층 구조로 에러 핸들링 일관성 확보
 
 ---
 
@@ -706,5 +713,5 @@ git reset --hard HEAD~n
 ---
 
 **Plan Status**: 🔄 In Progress
-**Next Action**: Phase 2 시작 - DART 서비스 및 기업 데이터 연동
+**Next Action**: Phase 3 시작 - 기업 목록/검색 UI
 **Blocked By**: None
