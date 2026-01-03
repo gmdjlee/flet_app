@@ -455,7 +455,36 @@ class SettingsView(ft.View):
             self._show_snackbar("API 키를 먼저 설정해주세요.", is_error=True)
             return
 
-        self._show_snackbar("재무제표 동기화는 기업 상세 화면에서 개별적으로 실행해주세요.")
+        # Show progress UI
+        self.progress_bar.visible = True
+        self.progress_bar.value = None  # Indeterminate
+        self.progress_text.visible = True
+        self.progress_text.value = "재무제표 동기화 준비 중..."
+        self.cancel_button.visible = True
+        self.sync_corp_button.disabled = True
+        self.sync_fin_button.disabled = True
+        self._page_ref.update()
+
+        # Start sync in background
+        asyncio.create_task(self._run_financial_sync())
+
+    async def _run_financial_sync(self) -> None:
+        """Run financial statements synchronization."""
+        if not self._sync_service:
+            self._show_snackbar("동기화 서비스가 초기화되지 않았습니다.", is_error=True)
+            self._on_sync_finished(
+                SyncProgress(
+                    status=SyncStatus.FAILED,
+                    current=0,
+                    total=0,
+                    message="서비스 초기화 실패",
+                    error="SyncService not initialized",
+                )
+            )
+            return
+
+        self._sync_service.set_progress_callback(self._progress_callback)
+        await self._sync_service.sync_all_financial_statements()
 
     def _on_cancel_sync(self, e: ft.ControlEvent) -> None:
         """Handle cancel sync event."""
