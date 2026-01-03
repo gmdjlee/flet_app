@@ -172,14 +172,30 @@ class DartService:
 
         try:
             loop = asyncio.get_event_loop()
-            statements = await loop.run_in_executor(
+            # Use dart_fss.api.finance.get_single_corp for financial statements
+            response = await loop.run_in_executor(
                 None,
-                lambda: dart_fss.get_financial_statement(
+                lambda: dart_fss.api.finance.get_single_corp(
                     corp_code=corp_code,
                     bsns_year=bsns_year,
                     reprt_code=reprt_code,
                 ),
             )
+
+            # Handle response format - API returns dict with 'list' key or None
+            if response is None:
+                return []
+
+            # Extract list from response dict if needed
+            if isinstance(response, dict):
+                statements = response.get("list", [])
+            elif isinstance(response, list):
+                statements = response
+            else:
+                statements = []
+
+            if statements is None:
+                statements = []
 
             # Filter by fs_div if specified
             if fs_div:
