@@ -76,3 +76,33 @@ python_version = "3.11"
 warn_return_any = true
 warn_unused_configs = true
 ignore_missing_imports = true
+
+[tool.flet]
+# Application settings
+org = "dev.dartdb"
+product = "dart-db-flet"
+project = "dart-db-flet"
+
+# Build settings
+build_number = 1
+splash_color = "#2196F3"
+splash_dark_color = "#1565C0"
+
+[tool.flet.desktop]
+# Desktop-specific settings
+product_name = "DART-DB"
+company_name = "gmdjlee"
+copyright = "© 2026 gmdjlee"
+file_description = "DART 전자공시 데이터 분석 애플리케이션"
+
+[tool.flet.macos]
+# macOS-specific settings
+bundle_id = "dev.dartdb.dart-db-flet"
+
+[tool.flet.windows]
+# Windows-specific settings
+product_name = "DART-DB"
+
+[tool.flet.linux]
+# Linux-specific settings
+product_name = "dart-db"
