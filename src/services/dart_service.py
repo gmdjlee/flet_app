@@ -59,6 +59,28 @@ class DartService:
         if dart_fss is not None:
             dart_fss.set_api_key(self.api_key)
 
+    def _corp_to_dict(self, corp: Any) -> dict[str, Any]:
+        """Convert Corp object to dictionary.
+
+        Args:
+            corp: Corp object from dart-fss or dict.
+
+        Returns:
+            Dictionary with corporation data.
+        """
+        # If already a dict, return as-is
+        if isinstance(corp, dict):
+            return corp
+
+        # Convert Corp object attributes to dict
+        return {
+            "corp_code": getattr(corp, "corp_code", None),
+            "corp_name": getattr(corp, "corp_name", None),
+            "stock_code": getattr(corp, "stock_code", None),
+            "corp_cls": getattr(corp, "corp_cls", None),
+            "modify_date": getattr(corp, "modify_date", None),
+        }
+
     async def get_corporation_list(self, market: str | None = None) -> list[dict[str, Any]]:
         """Fetch list of all corporations from DART.
 
@@ -75,6 +97,9 @@ class DartService:
             # Run synchronous dart-fss call in thread pool
             loop = asyncio.get_event_loop()
             corps = await loop.run_in_executor(None, dart_fss.get_corp_list)
+
+            # Convert Corp objects to dicts
+            corps = [self._corp_to_dict(c) for c in corps]
 
             # Filter by market if specified
             if market and market in self.MARKET_TO_CORP_CLS:
