@@ -72,30 +72,16 @@ class AnalyticsView(ft.View):
         )
         self.corporation_selector = self.corp_dropdown
 
-        # Analysis type selector
-        self.chart_type_selector = ft.SegmentedButton(
-            selected={"revenue"},
-            segments=[
-                ft.Segment(
-                    value="revenue",
-                    label=ft.Text("매출/이익"),
-                    icon=ft.Icon(ft.Icons.TRENDING_UP),
-                ),
-                ft.Segment(
-                    value="profitability",
-                    label=ft.Text("수익성"),
-                    icon=ft.Icon(ft.Icons.SHOW_CHART),
-                ),
-                ft.Segment(
-                    value="ratios",
-                    label=ft.Text("재무비율"),
-                    icon=ft.Icon(ft.Icons.PIE_CHART),
-                ),
-                ft.Segment(
-                    value="growth",
-                    label=ft.Text("성장률"),
-                    icon=ft.Icon(ft.Icons.STACKED_LINE_CHART),
-                ),
+        # Analysis type selector - using Dropdown instead of SegmentedButton for Flet 0.70+ compatibility
+        self.chart_type_selector = ft.Dropdown(
+            label="분석 유형",
+            value="revenue",
+            width=200,
+            options=[
+                ft.dropdown.Option(key="revenue", text="매출/이익"),
+                ft.dropdown.Option(key="profitability", text="수익성"),
+                ft.dropdown.Option(key="ratios", text="재무비율"),
+                ft.dropdown.Option(key="growth", text="성장률"),
             ],
             on_change=self._on_analysis_type_change,
         )
@@ -810,9 +796,9 @@ class AnalyticsView(ft.View):
 
     def _on_analysis_type_change(self, e: ft.ControlEvent) -> None:
         """Handle analysis type change."""
-        selected = e.control.selected
+        selected = e.control.value
         if selected:
-            self.analysis_type = list(selected)[0]
+            self.analysis_type = selected
             self.change_analysis_type(self.analysis_type)
 
     def set_chart_type(self, chart_type: str) -> None:
