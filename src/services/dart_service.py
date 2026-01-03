@@ -73,11 +73,16 @@ class DartService:
             return corp
 
         # Convert Corp object attributes to dict
+        # corp_cls defaults to "E" (etc) if not available
+        corp_cls = getattr(corp, "corp_cls", None)
+        if not corp_cls:
+            corp_cls = "E"
+
         return {
             "corp_code": getattr(corp, "corp_code", None),
             "corp_name": getattr(corp, "corp_name", None),
             "stock_code": getattr(corp, "stock_code", None),
-            "corp_cls": getattr(corp, "corp_cls", None),
+            "corp_cls": corp_cls,
             "modify_date": getattr(corp, "modify_date", None),
         }
 

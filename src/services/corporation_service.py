@@ -236,19 +236,27 @@ class CorporationService:
         if not corp_code:
             raise ValueError("corp_code is required for upsert")
 
-        existing = self.get_by_corp_code(corp_code)
+        try:
+            existing = self.get_by_corp_code(corp_code)
 
-        if existing:
-            # Update existing record
-            for key, value in data.items():
-                if hasattr(existing, key):
-                    setattr(existing, key, value)
-            self.session.commit()
-            self.session.refresh(existing)
-            return existing
-        else:
-            # Create new record
-            return self.create(data)
+            if existing:
+                # Update existing record - skip None values to preserve existing data
+                for key, value in data.items():
+                    if hasattr(existing, key) and value is not None:
+                        setattr(existing, key, value)
+                self.session.commit()
+                self.session.refresh(existing)
+                return existing
+            else:
+                # Create new record - filter out None values for NOT NULL columns
+                filtered_data = {k: v for k, v in data.items() if v is not None}
+                # Ensure required fields have defaults
+                if "corp_cls" not in filtered_data:
+                    filtered_data["corp_cls"] = "E"
+                return self.create(filtered_data)
+        except Exception:
+            self.session.rollback()
+            raise
 
     def bulk_upsert(self, corps_data: list[dict[str, Any]]) -> int:
         """Bulk upsert multiple corporations.
