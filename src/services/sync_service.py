@@ -802,6 +802,120 @@ class SyncService:
             "currency": data.get("currency", "KRW"),
         }
 
+    async def sync_all_financial_statements(
+        self,
+        corp_codes: list[str] | None = None,
+        years: list[str] | None = None,
+        reprt_codes: list[str] | None = None,
+    ) -> SyncProgress:
+        """Sync financial statements for multiple corporations.
+
+        Args:
+            corp_codes: List of corp_codes to sync. If None, syncs all listed corporations.
+            years: List of business years to sync. Defaults to last 3 years.
+            reprt_codes: List of report codes. Defaults to annual report only.
+
+        Returns:
+            Final SyncProgress object.
+        """
+        self._cancelled = False
+        self._progress = SyncProgress(
+            status=SyncStatus.SYNCING,
+            current=0,
+            total=0,
+            message="재무제표 동기화 준비 중...",
+            started_at=datetime.now(),
+        )
+        self._update_progress()
+
+        # Start logging
+        sync_log = self._start_sync_log("financial_statements")
+
+        try:
+            if corp_codes is None:
+                # Get only listed corporations (with stock_code)
+                corps = (
+                    self.session.query(Corporation)
+                    .filter(Corporation.stock_code.isnot(None))
+                    .filter(Corporation.stock_code != "")
+                    .all()
+                )
+                corp_codes = [c.corp_code for c in corps]
+
+            if not corp_codes:
+                self._update_progress(
+                    status=SyncStatus.FAILED,
+                    error="동기화할 기업이 없습니다. 먼저 기업 목록을 동기화해주세요.",
+                    message="동기화 실패",
+                )
+                sync_log.add_error("No corporations to sync")
+                self._finish_sync_log("failed")
+                return self._progress
+
+            total = len(corp_codes)
+            sync_log.total_items = total
+            sync_log.add_entry("INFO", f"{total}개 기업 재무제표 동기화 시작")
+            self._update_progress(total=total, message=f"{total}개 기업 재무제표 동기화 중...")
+
+            synced_corps = 0
+            total_statements = 0
+
+            for corp_code in corp_codes:
+                if self._cancelled:
+                    sync_log.processed_items = synced_corps
+                    self._finish_sync_log("cancelled")
+                    self._update_progress(
+                        status=SyncStatus.CANCELLED,
+                        message="동기화가 취소되었습니다.",
+                    )
+                    return self._progress
+
+                try:
+                    count = await self.sync_financial_statements(
+                        corp_code=corp_code,
+                        years=years,
+                        reprt_codes=reprt_codes,
+                    )
+                    total_statements += count
+                    synced_corps += 1
+                    sync_log.success_count += 1
+                except Exception as e:
+                    sync_log.add_error(
+                        str(e),
+                        item_id=corp_code,
+                        error_type=type(e).__name__,
+                    )
+                    logger.warning(f"Failed to sync financial statements for {corp_code}: {e}")
+
+                sync_log.processed_items = synced_corps
+                self._update_progress(
+                    current=synced_corps,
+                    message=f"재무제표 동기화 중... {synced_corps}/{total} (항목 {total_statements}개)",
+                )
+
+            self._progress.completed_at = datetime.now()
+            self._finish_sync_log("completed")
+            self._update_progress(
+                status=SyncStatus.COMPLETED,
+                message=f"{synced_corps}개 기업, {total_statements}개 재무제표 동기화 완료",
+            )
+
+            logger.info(
+                f"Financial statements sync completed: {synced_corps} corps, {total_statements} statements"
+            )
+            return self._progress
+
+        except Exception as e:
+            logger.error(f"Financial statements sync failed: {e}")
+            sync_log.add_error(str(e), error_type=type(e).__name__)
+            self._finish_sync_log("failed")
+            self._update_progress(
+                status=SyncStatus.FAILED,
+                error=str(e),
+                message="동기화 실패",
+            )
+            return self._progress
+
     def _upsert_financial_statement(self, data: dict[str, Any]) -> FinancialStatement:
         """Upsert a financial statement record.
 
