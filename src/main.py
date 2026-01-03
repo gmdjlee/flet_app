@@ -5,6 +5,7 @@ from collections.abc import Callable
 import flet as ft
 
 from src.components.navigation import create_navigation
+from src.views.analytics_view import AnalyticsView
 from src.views.corporations_view import CorporationsView
 from src.views.detail_view import DetailView
 from src.views.home_view import HomeView
@@ -14,6 +15,7 @@ from src.views.settings_view import SettingsView
 ROUTES: dict[str, Callable[[ft.Page], ft.View]] = {
     "/": HomeView,
     "/corporations": CorporationsView,
+    "/analytics": AnalyticsView,
     "/settings": SettingsView,
 }
 
