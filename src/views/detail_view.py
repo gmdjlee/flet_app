@@ -68,28 +68,16 @@ class DetailView(ft.View):
             visible=False,
         )
 
-        # Tab state - use SegmentedButton for tabs
+        # Tab state
         self.selected_tab_index = 0
 
-        # Tab buttons
-        self.tab_buttons = ft.SegmentedButton(
-            selected={"0"},
-            segments=[
-                ft.Segment(
-                    value="0",
-                    label=ft.Text("기본 정보"),
-                    icon=ft.Icon(ft.Icons.INFO_OUTLINED),
-                ),
-                ft.Segment(
-                    value="1",
-                    label=ft.Text("재무제표"),
-                    icon=ft.Icon(ft.Icons.TABLE_CHART),
-                ),
-                ft.Segment(
-                    value="2",
-                    label=ft.Text("재무비율"),
-                    icon=ft.Icon(ft.Icons.PIE_CHART),
-                ),
+        # Tab buttons - using Tabs for Flet 0.70+ compatibility
+        self.tab_buttons = ft.Tabs(
+            selected_index=0,
+            tabs=[
+                ft.Tab(text="기본 정보", icon=ft.Icons.INFO_OUTLINED),
+                ft.Tab(text="재무제표", icon=ft.Icons.TABLE_CHART),
+                ft.Tab(text="재무비율", icon=ft.Icons.PIE_CHART),
             ],
             on_change=self._on_tab_change,
         )
@@ -344,12 +332,14 @@ class DetailView(ft.View):
                 padding=50,
             )
 
-        # Statement type selector using SegmentedButton
-        self.statement_type_buttons = ft.SegmentedButton(
-            selected={"BS"},
-            segments=[
-                ft.Segment(value="BS", label=ft.Text("재무상태표")),
-                ft.Segment(value="IS", label=ft.Text("손익계산서")),
+        # Statement type selector - using Dropdown for Flet 0.70+ compatibility
+        self.statement_type_buttons = ft.Dropdown(
+            label="재무제표 유형",
+            value="BS",
+            width=180,
+            options=[
+                ft.dropdown.Option(key="BS", text="재무상태표"),
+                ft.dropdown.Option(key="IS", text="손익계산서"),
             ],
             on_change=self._on_statement_type_change,
         )
@@ -588,10 +578,8 @@ class DetailView(ft.View):
         Args:
             e: Control event.
         """
-        selected = e.control.selected
-        if selected:
-            self.selected_tab_index = int(list(selected)[0])
-            self._update_tab_content()
+        self.selected_tab_index = e.control.selected_index
+        self._update_tab_content()
 
     def _on_year_change(self, e: ft.ControlEvent) -> None:
         """Handle year selection change.
@@ -616,9 +604,8 @@ class DetailView(ft.View):
         Args:
             e: Control event.
         """
-        selected = e.control.selected
-        if selected and hasattr(self, "statement_content"):
-            stmt_type = list(selected)[0]
+        stmt_type = e.control.value
+        if stmt_type and hasattr(self, "statement_content"):
             if stmt_type == "BS":
                 self.statement_content.content = self.bs_table
             else:
