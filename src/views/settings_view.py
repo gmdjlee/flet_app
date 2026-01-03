@@ -8,7 +8,9 @@ import flet as ft
 from src.models.database import get_engine, get_session
 from src.services.dart_service import DartService
 from src.services.sync_service import (
+    CheckpointManager,
     SettingsManager,
+    SyncCheckpoint,
     SyncLogger,
     SyncProgress,
     SyncService,
@@ -36,6 +38,7 @@ class SettingsView(ft.View):
         self._settings_manager = SettingsManager()
         self._sync_logger = SyncLogger()
         self._cache_manager = CacheManager()
+        self._checkpoint_manager = CheckpointManager()
 
         # UI Controls
         self.api_key_field = ft.TextField(
@@ -79,6 +82,37 @@ class SettingsView(ft.View):
             style=ft.ButtonStyle(
                 side=ft.BorderSide(1, ft.Colors.GREY_400),
             ),
+        )
+
+        # Resume buttons
+        self.resume_corp_button = ft.Button(
+            "기업 목록 재개",
+            icon=ft.Icons.PLAY_ARROW,
+            on_click=self._on_resume_corporations,
+            visible=False,
+            style=ft.ButtonStyle(
+                bgcolor=ft.Colors.ORANGE,
+                color=ft.Colors.WHITE,
+            ),
+        )
+        self.resume_fin_button = ft.Button(
+            "재무제표 재개",
+            icon=ft.Icons.PLAY_ARROW,
+            on_click=self._on_resume_financials,
+            visible=False,
+            style=ft.ButtonStyle(
+                bgcolor=ft.Colors.ORANGE,
+                color=ft.Colors.WHITE,
+            ),
+        )
+
+        # Checkpoint info container
+        self.checkpoint_info_container = ft.Container(
+            content=ft.Column(controls=[], spacing=5),
+            visible=False,
+            padding=10,
+            bgcolor=ft.Colors.ORANGE_50,
+            border_radius=8,
         )
 
         # Recent logs container
@@ -216,13 +250,18 @@ class SettingsView(ft.View):
                             size=12,
                             color=ft.Colors.GREY_600,
                         ),
+                        # Checkpoint info section
+                        self.checkpoint_info_container,
                         ft.Row(
                             controls=[
                                 self.sync_corp_button,
                                 self.sync_fin_button,
+                                self.resume_corp_button,
+                                self.resume_fin_button,
                                 self.cancel_button,
                             ],
                             spacing=10,
+                            wrap=True,
                         ),
                         self.progress_bar,
                         self.progress_text,
@@ -319,8 +358,79 @@ class SettingsView(ft.View):
         self.sync_corp_button.disabled = not has_api_key
         self.sync_fin_button.disabled = not has_api_key
 
+        # Check for resumable checkpoints and update UI
+        self._update_checkpoint_status()
+
         # Load recent logs
         self._load_recent_logs()
+
+    def _update_checkpoint_status(self) -> None:
+        """Update checkpoint status and resume buttons visibility."""
+        corp_checkpoint = self._checkpoint_manager.load_checkpoint("corporation_list")
+        fin_checkpoint = self._checkpoint_manager.load_checkpoint("financial_statements")
+
+        has_api_key = bool(self._settings_manager.get_api_key())
+
+        # Update resume buttons visibility
+        self.resume_corp_button.visible = corp_checkpoint is not None and has_api_key
+        self.resume_fin_button.visible = fin_checkpoint is not None and has_api_key
+
+        # Update checkpoint info container
+        checkpoint_infos = []
+
+        if corp_checkpoint:
+            checkpoint_infos.append(self._create_checkpoint_info(corp_checkpoint, "기업 목록"))
+
+        if fin_checkpoint:
+            checkpoint_infos.append(self._create_checkpoint_info(fin_checkpoint, "재무제표"))
+
+        if checkpoint_infos:
+            self.checkpoint_info_container.content.controls = checkpoint_infos
+            self.checkpoint_info_container.visible = True
+        else:
+            self.checkpoint_info_container.visible = False
+
+    def _create_checkpoint_info(self, checkpoint: SyncCheckpoint, name: str) -> ft.Control:
+        """Create checkpoint info row."""
+        try:
+            last_updated = datetime.fromisoformat(checkpoint.last_updated_at)
+            formatted_time = last_updated.strftime("%Y-%m-%d %H:%M")
+        except ValueError:
+            formatted_time = checkpoint.last_updated_at
+
+        percentage = checkpoint.percentage
+        remaining = checkpoint.total_items - checkpoint.processed_count
+
+        return ft.Row(
+            controls=[
+                ft.Icon(ft.Icons.PAUSE_CIRCLE, color=ft.Colors.ORANGE, size=18),
+                ft.Text(f"{name}: ", weight=ft.FontWeight.W_500, size=12),
+                ft.Text(
+                    f"{checkpoint.processed_count}/{checkpoint.total_items} ({percentage:.1f}%)",
+                    size=12,
+                ),
+                ft.Text(f"- {remaining}개 남음", size=12, color=ft.Colors.GREY_600),
+                ft.Container(expand=True),
+                ft.Text(f"중단: {formatted_time}", size=11, color=ft.Colors.GREY_500),
+                ft.IconButton(
+                    icon=ft.Icons.DELETE_OUTLINE,
+                    icon_size=16,
+                    tooltip="체크포인트 삭제",
+                    on_click=lambda e, sync_type=checkpoint.sync_type: self._on_clear_checkpoint(
+                        e, sync_type
+                    ),
+                ),
+            ],
+            spacing=5,
+        )
+
+    def _on_clear_checkpoint(self, e: ft.ControlEvent, sync_type: str) -> None:
+        """Handle clear checkpoint event."""
+        self._checkpoint_manager.clear_checkpoint(sync_type)
+        self._update_sync_status()
+        self._page_ref.update()
+        sync_type_name = "기업 목록" if sync_type == "corporation_list" else "재무제표"
+        self._show_snackbar(f"{sync_type_name} 체크포인트가 삭제되었습니다.")
 
     def _load_recent_logs(self) -> None:
         """Load recent sync logs."""
@@ -516,6 +626,98 @@ class SettingsView(ft.View):
 
         sync_service.set_progress_callback(self._progress_callback)
         await sync_service.sync_all_financial_statements()
+
+    def _on_resume_corporations(self, e: ft.ControlEvent) -> None:
+        """Handle resume corporations sync event."""
+        if not self._settings_manager.get_api_key():
+            self._show_snackbar("API 키를 먼저 설정해주세요.", is_error=True)
+            return
+
+        # Check if checkpoint exists
+        checkpoint = self._checkpoint_manager.load_checkpoint("corporation_list")
+        if not checkpoint:
+            self._show_snackbar("재개할 체크포인트가 없습니다.", is_error=True)
+            return
+
+        # Show progress UI
+        self.progress_bar.visible = True
+        self.progress_bar.value = checkpoint.processed_count / checkpoint.total_items
+        self.progress_text.visible = True
+        self.progress_text.value = f"동기화 재개 중... {checkpoint.processed_count}/{checkpoint.total_items}"
+        self.cancel_button.visible = True
+        self.sync_corp_button.disabled = True
+        self.sync_fin_button.disabled = True
+        self.resume_corp_button.visible = False
+        self.resume_fin_button.visible = False
+        self._page_ref.update()
+
+        # Start sync in background with resume
+        asyncio.create_task(self._run_corporation_sync_resume())
+
+    async def _run_corporation_sync_resume(self) -> None:
+        """Run corporation list synchronization with resume."""
+        sync_service = self._get_or_create_sync_service()
+        if not sync_service:
+            self._show_snackbar("동기화 서비스를 초기화할 수 없습니다. API 키를 확인해주세요.", is_error=True)
+            self._on_sync_finished(
+                SyncProgress(
+                    status=SyncStatus.FAILED,
+                    current=0,
+                    total=0,
+                    message="서비스 초기화 실패",
+                    error="SyncService not initialized",
+                )
+            )
+            return
+
+        sync_service.set_progress_callback(self._progress_callback)
+        await sync_service.sync_corporation_list(resume=True)
+
+    def _on_resume_financials(self, e: ft.ControlEvent) -> None:
+        """Handle resume financials sync event."""
+        if not self._settings_manager.get_api_key():
+            self._show_snackbar("API 키를 먼저 설정해주세요.", is_error=True)
+            return
+
+        # Check if checkpoint exists
+        checkpoint = self._checkpoint_manager.load_checkpoint("financial_statements")
+        if not checkpoint:
+            self._show_snackbar("재개할 체크포인트가 없습니다.", is_error=True)
+            return
+
+        # Show progress UI
+        self.progress_bar.visible = True
+        self.progress_bar.value = checkpoint.processed_count / checkpoint.total_items
+        self.progress_text.visible = True
+        self.progress_text.value = f"재무제표 동기화 재개 중... {checkpoint.processed_count}/{checkpoint.total_items}"
+        self.cancel_button.visible = True
+        self.sync_corp_button.disabled = True
+        self.sync_fin_button.disabled = True
+        self.resume_corp_button.visible = False
+        self.resume_fin_button.visible = False
+        self._page_ref.update()
+
+        # Start sync in background with resume
+        asyncio.create_task(self._run_financial_sync_resume())
+
+    async def _run_financial_sync_resume(self) -> None:
+        """Run financial statements synchronization with resume."""
+        sync_service = self._get_or_create_sync_service()
+        if not sync_service:
+            self._show_snackbar("동기화 서비스를 초기화할 수 없습니다. API 키를 확인해주세요.", is_error=True)
+            self._on_sync_finished(
+                SyncProgress(
+                    status=SyncStatus.FAILED,
+                    current=0,
+                    total=0,
+                    message="서비스 초기화 실패",
+                    error="SyncService not initialized",
+                )
+            )
+            return
+
+        sync_service.set_progress_callback(self._progress_callback)
+        await sync_service.sync_all_financial_statements(resume=True)
 
     def _on_cancel_sync(self, e: ft.ControlEvent) -> None:
         """Handle cancel sync event."""

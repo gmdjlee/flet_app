@@ -24,6 +24,10 @@ logger = logging.getLogger(__name__)
 DATA_DIR = Path.home() / ".dart-db-flet" / "data"
 LOGS_DIR = DATA_DIR / "logs"
 SETTINGS_FILE = DATA_DIR / "settings.json"
+CHECKPOINT_DIR = DATA_DIR / "checkpoints"
+
+# Checkpoint settings
+CHECKPOINT_SAVE_INTERVAL = 50  # Save checkpoint every N items
 
 
 class SyncStatus(Enum):
@@ -139,6 +143,165 @@ class SyncLog:
             "entries": [asdict(e) for e in self.entries],
             "errors": self.errors,
         }
+
+
+@dataclass
+class SyncCheckpoint:
+    """Data class for sync checkpoint to enable resume functionality."""
+
+    sync_type: str  # corporation_list, financial_statements
+    started_at: str  # ISO format timestamp
+    last_updated_at: str  # ISO format timestamp
+    total_items: int  # Total number of items to process
+    processed_count: int  # Number of items already processed
+    processed_items: list[str]  # List of processed item IDs (corp_codes)
+    remaining_items: list[str]  # List of remaining item IDs to process
+    sync_params: dict[str, Any] = field(default_factory=dict)  # Additional sync parameters
+
+    @property
+    def percentage(self) -> float:
+        """Calculate completion percentage."""
+        if self.total_items == 0:
+            return 0.0
+        return (self.processed_count / self.total_items) * 100
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "sync_type": self.sync_type,
+            "started_at": self.started_at,
+            "last_updated_at": self.last_updated_at,
+            "total_items": self.total_items,
+            "processed_count": self.processed_count,
+            "processed_items": self.processed_items,
+            "remaining_items": self.remaining_items,
+            "sync_params": self.sync_params,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "SyncCheckpoint":
+        """Create SyncCheckpoint from dictionary."""
+        return cls(
+            sync_type=data["sync_type"],
+            started_at=data["started_at"],
+            last_updated_at=data["last_updated_at"],
+            total_items=data["total_items"],
+            processed_count=data["processed_count"],
+            processed_items=data.get("processed_items", []),
+            remaining_items=data.get("remaining_items", []),
+            sync_params=data.get("sync_params", {}),
+        )
+
+
+class CheckpointManager:
+    """Manager for sync checkpoints to enable resume functionality."""
+
+    def __init__(self, checkpoint_dir: Path | None = None):
+        """Initialize checkpoint manager.
+
+        Args:
+            checkpoint_dir: Directory to store checkpoint files.
+        """
+        self.checkpoint_dir = checkpoint_dir or CHECKPOINT_DIR
+        self._ensure_checkpoint_dir()
+
+    def _ensure_checkpoint_dir(self) -> None:
+        """Ensure checkpoint directory exists."""
+        self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
+
+    def _get_checkpoint_path(self, sync_type: str) -> Path:
+        """Get checkpoint file path for a sync type."""
+        return self.checkpoint_dir / f"checkpoint_{sync_type}.json"
+
+    def save_checkpoint(self, checkpoint: SyncCheckpoint) -> Path:
+        """Save checkpoint to file.
+
+        Args:
+            checkpoint: SyncCheckpoint instance to save.
+
+        Returns:
+            Path to saved checkpoint file.
+        """
+        self._ensure_checkpoint_dir()
+        checkpoint.last_updated_at = datetime.now().isoformat()
+        filepath = self._get_checkpoint_path(checkpoint.sync_type)
+
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(checkpoint.to_dict(), f, ensure_ascii=False, indent=2)
+
+        logger.debug(f"Checkpoint saved: {filepath}")
+        return filepath
+
+    def load_checkpoint(self, sync_type: str) -> SyncCheckpoint | None:
+        """Load checkpoint from file.
+
+        Args:
+            sync_type: Type of sync to load checkpoint for.
+
+        Returns:
+            SyncCheckpoint instance or None if not found.
+        """
+        filepath = self._get_checkpoint_path(sync_type)
+        if not filepath.exists():
+            return None
+
+        try:
+            with open(filepath, encoding="utf-8") as f:
+                data = json.load(f)
+                return SyncCheckpoint.from_dict(data)
+        except (json.JSONDecodeError, OSError, KeyError) as e:
+            logger.warning(f"Failed to load checkpoint {filepath}: {e}")
+            return None
+
+    def has_checkpoint(self, sync_type: str) -> bool:
+        """Check if checkpoint exists for a sync type.
+
+        Args:
+            sync_type: Type of sync to check.
+
+        Returns:
+            True if checkpoint exists.
+        """
+        return self._get_checkpoint_path(sync_type).exists()
+
+    def clear_checkpoint(self, sync_type: str) -> bool:
+        """Clear checkpoint for a sync type.
+
+        Args:
+            sync_type: Type of sync to clear checkpoint for.
+
+        Returns:
+            True if checkpoint was cleared.
+        """
+        filepath = self._get_checkpoint_path(sync_type)
+        if filepath.exists():
+            try:
+                filepath.unlink()
+                logger.debug(f"Checkpoint cleared: {filepath}")
+                return True
+            except OSError as e:
+                logger.warning(f"Failed to clear checkpoint {filepath}: {e}")
+                return False
+        return False
+
+    def get_all_checkpoints(self) -> list[SyncCheckpoint]:
+        """Get all available checkpoints.
+
+        Returns:
+            List of SyncCheckpoint instances.
+        """
+        self._ensure_checkpoint_dir()
+        checkpoints = []
+
+        for filepath in self.checkpoint_dir.glob("checkpoint_*.json"):
+            try:
+                with open(filepath, encoding="utf-8") as f:
+                    data = json.load(f)
+                    checkpoints.append(SyncCheckpoint.from_dict(data))
+            except (json.JSONDecodeError, OSError, KeyError) as e:
+                logger.warning(f"Failed to load checkpoint {filepath}: {e}")
+
+        return checkpoints
 
 
 class SyncLogger:
@@ -353,6 +516,7 @@ class SyncService:
         rate_limit_delay: float | None = None,
         sync_logger: SyncLogger | None = None,
         settings_manager: SettingsManager | None = None,
+        checkpoint_manager: CheckpointManager | None = None,
     ):
         """Initialize sync service.
 
@@ -362,6 +526,7 @@ class SyncService:
             rate_limit_delay: Delay between API calls in seconds.
             sync_logger: SyncLogger instance for logging sync operations.
             settings_manager: SettingsManager instance for settings.
+            checkpoint_manager: CheckpointManager instance for resume functionality.
         """
         self.dart_service = dart_service
         self.session = session
@@ -369,6 +534,7 @@ class SyncService:
         self.rate_limit_delay = rate_limit_delay or self.DEFAULT_RATE_LIMIT_DELAY
         self.sync_logger = sync_logger or SyncLogger()
         self.settings_manager = settings_manager or SettingsManager()
+        self.checkpoint_manager = checkpoint_manager or CheckpointManager()
 
         self._progress = SyncProgress(
             status=SyncStatus.IDLE,
@@ -379,6 +545,7 @@ class SyncService:
         self._cancelled = False
         self._progress_callback: Callable[[SyncProgress], None] | None = None
         self._current_log: SyncLog | None = None
+        self._current_checkpoint: SyncCheckpoint | None = None
 
     @property
     def progress(self) -> SyncProgress:
@@ -488,27 +655,46 @@ class SyncService:
     async def sync_corporation_list(
         self,
         market: str | None = None,
+        resume: bool = False,
     ) -> SyncProgress:
         """Sync corporation list from DART to local database.
 
         Args:
             market: Optional market filter (KOSPI, KOSDAQ, etc.)
+            resume: If True, resume from last checkpoint.
 
         Returns:
             Final SyncProgress object.
         """
         self._cancelled = False
+        sync_type = "corporation_list"
+
+        # Check for existing checkpoint if resume is requested
+        checkpoint = None
+        processed_corp_codes: set[str] = set()
+
+        if resume:
+            checkpoint = self.checkpoint_manager.load_checkpoint(sync_type)
+            if checkpoint:
+                processed_corp_codes = set(checkpoint.processed_items)
+                logger.info(
+                    f"Resuming corporation sync from checkpoint: "
+                    f"{checkpoint.processed_count}/{checkpoint.total_items}"
+                )
+
         self._progress = SyncProgress(
             status=SyncStatus.SYNCING,
-            current=0,
-            total=0,
-            message="기업 목록 가져오는 중...",
-            started_at=datetime.now(),
+            current=checkpoint.processed_count if checkpoint else 0,
+            total=checkpoint.total_items if checkpoint else 0,
+            message="기업 목록 가져오는 중..." if not checkpoint else "동기화 재개 중...",
+            started_at=datetime.fromisoformat(checkpoint.started_at) if checkpoint else datetime.now(),
         )
         self._update_progress()
 
         # Start logging
-        sync_log = self._start_sync_log("corporation_list")
+        sync_log = self._start_sync_log(sync_type)
+        if checkpoint:
+            sync_log.add_entry("INFO", f"체크포인트에서 재개: {checkpoint.processed_count}/{checkpoint.total_items}")
 
         try:
             # Fetch corporation list from DART
@@ -519,20 +705,48 @@ class SyncService:
 
             total = len(corps)
             sync_log.total_items = total
-            sync_log.add_entry("INFO", f"{total}개 기업 목록 수신")
+
+            # Filter out already processed items if resuming
+            if checkpoint and processed_corp_codes:
+                corps_to_process = [c for c in corps if c.get("corp_code") not in processed_corp_codes]
+                synced = checkpoint.processed_count
+                sync_log.add_entry(
+                    "INFO",
+                    f"{total}개 기업 중 {len(corps_to_process)}개 남음 (재개)",
+                )
+            else:
+                corps_to_process = corps
+                synced = 0
+                sync_log.add_entry("INFO", f"{total}개 기업 목록 수신")
+
             self._update_progress(total=total, message=f"{total}개 기업 동기화 중...")
 
-            synced = 0
-            for i, corp_data in enumerate(corps):
+            # Initialize or update checkpoint
+            self._current_checkpoint = SyncCheckpoint(
+                sync_type=sync_type,
+                started_at=checkpoint.started_at if checkpoint else datetime.now().isoformat(),
+                last_updated_at=datetime.now().isoformat(),
+                total_items=total,
+                processed_count=synced,
+                processed_items=list(processed_corp_codes),
+                remaining_items=[c.get("corp_code", "") for c in corps_to_process],
+                sync_params={"market": market},
+            )
+
+            for i, corp_data in enumerate(corps_to_process):
                 if self._cancelled:
+                    # Save checkpoint on cancel
+                    self._current_checkpoint.processed_count = synced
+                    self.checkpoint_manager.save_checkpoint(self._current_checkpoint)
                     sync_log.processed_items = synced
                     self._finish_sync_log("cancelled")
                     self._update_progress(
                         status=SyncStatus.CANCELLED,
-                        message="동기화가 취소되었습니다.",
+                        message=f"동기화가 취소되었습니다. ({synced}/{total} 완료, 재개 가능)",
                     )
                     return self._progress
 
+                corp_code = corp_data.get("corp_code", "")
                 try:
                     # Map DART API fields to our model
                     corp_dict = self._map_corporation_data(corp_data)
@@ -541,13 +755,20 @@ class SyncService:
                     self.corp_service.upsert(corp_dict)
                     synced += 1
                     sync_log.success_count += 1
+
+                    # Update checkpoint
+                    self._current_checkpoint.processed_count = synced
+                    self._current_checkpoint.processed_items.append(corp_code)
+                    if corp_code in self._current_checkpoint.remaining_items:
+                        self._current_checkpoint.remaining_items.remove(corp_code)
+
                 except Exception as e:
                     sync_log.add_error(
                         str(e),
-                        item_id=corp_data.get("corp_code"),
+                        item_id=corp_code,
                         error_type=type(e).__name__,
                     )
-                    logger.warning(f"Failed to sync corporation {corp_data.get('corp_code')}: {e}")
+                    logger.warning(f"Failed to sync corporation {corp_code}: {e}")
 
                 sync_log.processed_items = synced
                 self._update_progress(
@@ -555,12 +776,21 @@ class SyncService:
                     message=f"동기화 중... {synced}/{total}",
                 )
 
+                # Save checkpoint periodically
+                if (i + 1) % CHECKPOINT_SAVE_INTERVAL == 0:
+                    self.checkpoint_manager.save_checkpoint(self._current_checkpoint)
+
                 # Rate limiting
-                if i < total - 1:
+                if i < len(corps_to_process) - 1:
                     await asyncio.sleep(self.rate_limit_delay / 10)  # Faster for list
 
             self._progress.completed_at = datetime.now()
             self._finish_sync_log("completed")
+
+            # Clear checkpoint on successful completion
+            self.checkpoint_manager.clear_checkpoint(sync_type)
+            self._current_checkpoint = None
+
             self._update_progress(
                 status=SyncStatus.COMPLETED,
                 message=f"{synced}개 기업 동기화 완료",
@@ -571,12 +801,17 @@ class SyncService:
 
         except Exception as e:
             logger.error(f"Corporation sync failed: {e}")
+
+            # Save checkpoint on failure for resume
+            if self._current_checkpoint:
+                self.checkpoint_manager.save_checkpoint(self._current_checkpoint)
+
             sync_log.add_error(str(e), error_type=type(e).__name__)
             self._finish_sync_log("failed")
             self._update_progress(
                 status=SyncStatus.FAILED,
                 error=str(e),
-                message="동기화 실패",
+                message=f"동기화 실패 (재개 가능: {self._current_checkpoint.processed_count if self._current_checkpoint else 0}개 완료)",
             )
             return self._progress
 
@@ -807,6 +1042,7 @@ class SyncService:
         corp_codes: list[str] | None = None,
         years: list[str] | None = None,
         reprt_codes: list[str] | None = None,
+        resume: bool = False,
     ) -> SyncProgress:
         """Sync financial statements for multiple corporations.
 
@@ -814,22 +1050,40 @@ class SyncService:
             corp_codes: List of corp_codes to sync. If None, syncs all listed corporations.
             years: List of business years to sync. Defaults to last 3 years.
             reprt_codes: List of report codes. Defaults to annual report only.
+            resume: If True, resume from last checkpoint.
 
         Returns:
             Final SyncProgress object.
         """
         self._cancelled = False
+        sync_type = "financial_statements"
+
+        # Check for existing checkpoint if resume is requested
+        checkpoint = None
+        processed_corp_codes: set[str] = set()
+
+        if resume:
+            checkpoint = self.checkpoint_manager.load_checkpoint(sync_type)
+            if checkpoint:
+                processed_corp_codes = set(checkpoint.processed_items)
+                logger.info(
+                    f"Resuming financial statements sync from checkpoint: "
+                    f"{checkpoint.processed_count}/{checkpoint.total_items}"
+                )
+
         self._progress = SyncProgress(
             status=SyncStatus.SYNCING,
-            current=0,
-            total=0,
-            message="재무제표 동기화 준비 중...",
-            started_at=datetime.now(),
+            current=checkpoint.processed_count if checkpoint else 0,
+            total=checkpoint.total_items if checkpoint else 0,
+            message="재무제표 동기화 준비 중..." if not checkpoint else "동기화 재개 중...",
+            started_at=datetime.fromisoformat(checkpoint.started_at) if checkpoint else datetime.now(),
         )
         self._update_progress()
 
         # Start logging
-        sync_log = self._start_sync_log("financial_statements")
+        sync_log = self._start_sync_log(sync_type)
+        if checkpoint:
+            sync_log.add_entry("INFO", f"체크포인트에서 재개: {checkpoint.processed_count}/{checkpoint.total_items}")
 
         try:
             if corp_codes is None:
@@ -854,19 +1108,46 @@ class SyncService:
 
             total = len(corp_codes)
             sync_log.total_items = total
-            sync_log.add_entry("INFO", f"{total}개 기업 재무제표 동기화 시작")
+
+            # Filter out already processed items if resuming
+            if checkpoint and processed_corp_codes:
+                corps_to_process = [c for c in corp_codes if c not in processed_corp_codes]
+                synced_corps = checkpoint.processed_count
+                sync_log.add_entry(
+                    "INFO",
+                    f"{total}개 기업 중 {len(corps_to_process)}개 남음 (재개)",
+                )
+            else:
+                corps_to_process = corp_codes
+                synced_corps = 0
+                sync_log.add_entry("INFO", f"{total}개 기업 재무제표 동기화 시작")
+
             self._update_progress(total=total, message=f"{total}개 기업 재무제표 동기화 중...")
 
-            synced_corps = 0
+            # Initialize or update checkpoint
+            self._current_checkpoint = SyncCheckpoint(
+                sync_type=sync_type,
+                started_at=checkpoint.started_at if checkpoint else datetime.now().isoformat(),
+                last_updated_at=datetime.now().isoformat(),
+                total_items=total,
+                processed_count=synced_corps,
+                processed_items=list(processed_corp_codes),
+                remaining_items=corps_to_process.copy(),
+                sync_params={"years": years, "reprt_codes": reprt_codes},
+            )
+
             total_statements = 0
 
-            for corp_code in corp_codes:
+            for i, corp_code in enumerate(corps_to_process):
                 if self._cancelled:
+                    # Save checkpoint on cancel
+                    self._current_checkpoint.processed_count = synced_corps
+                    self.checkpoint_manager.save_checkpoint(self._current_checkpoint)
                     sync_log.processed_items = synced_corps
                     self._finish_sync_log("cancelled")
                     self._update_progress(
                         status=SyncStatus.CANCELLED,
-                        message="동기화가 취소되었습니다.",
+                        message=f"동기화가 취소되었습니다. ({synced_corps}/{total} 완료, 재개 가능)",
                     )
                     return self._progress
 
@@ -879,6 +1160,13 @@ class SyncService:
                     total_statements += count
                     synced_corps += 1
                     sync_log.success_count += 1
+
+                    # Update checkpoint
+                    self._current_checkpoint.processed_count = synced_corps
+                    self._current_checkpoint.processed_items.append(corp_code)
+                    if corp_code in self._current_checkpoint.remaining_items:
+                        self._current_checkpoint.remaining_items.remove(corp_code)
+
                 except Exception as e:
                     sync_log.add_error(
                         str(e),
@@ -893,8 +1181,17 @@ class SyncService:
                     message=f"재무제표 동기화 중... {synced_corps}/{total} (항목 {total_statements}개)",
                 )
 
+                # Save checkpoint periodically
+                if (i + 1) % CHECKPOINT_SAVE_INTERVAL == 0:
+                    self.checkpoint_manager.save_checkpoint(self._current_checkpoint)
+
             self._progress.completed_at = datetime.now()
             self._finish_sync_log("completed")
+
+            # Clear checkpoint on successful completion
+            self.checkpoint_manager.clear_checkpoint(sync_type)
+            self._current_checkpoint = None
+
             self._update_progress(
                 status=SyncStatus.COMPLETED,
                 message=f"{synced_corps}개 기업, {total_statements}개 재무제표 동기화 완료",
@@ -907,12 +1204,17 @@ class SyncService:
 
         except Exception as e:
             logger.error(f"Financial statements sync failed: {e}")
+
+            # Save checkpoint on failure for resume
+            if self._current_checkpoint:
+                self.checkpoint_manager.save_checkpoint(self._current_checkpoint)
+
             sync_log.add_error(str(e), error_type=type(e).__name__)
             self._finish_sync_log("failed")
             self._update_progress(
                 status=SyncStatus.FAILED,
                 error=str(e),
-                message="동기화 실패",
+                message=f"동기화 실패 (재개 가능: {self._current_checkpoint.processed_count if self._current_checkpoint else 0}개 완료)",
             )
             return self._progress
 
