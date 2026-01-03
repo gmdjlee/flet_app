@@ -2,7 +2,7 @@
 
 **Status**: 🔄 In Progress
 **Started**: 2026-01-02
-**Last Updated**: 2026-01-03 (Phase 5 completed)
+**Last Updated**: 2026-01-03 (Phase 6 completed)
 **Estimated Completion**: 2026-01-20
 
 **Framework**: Flet 0.8+
@@ -516,31 +516,51 @@ flet run src/main.py
 ### Phase 6: 기업 비교 기능
 **Goal**: 최대 5개 기업 선택 비교, 레이더 차트
 **Estimated Time**: 3 hours
-**Status**: ⏳ Pending
+**Status**: ✅ Completed
 
 #### Tasks
 
 **🔴 RED: Write Failing Tests First**
-- [ ] **Test 6.1**: 기업 비교 로직 테스트
+- [x] **Test 6.1**: 기업 비교 로직 테스트
   - File: `tests/unit/test_compare_service.py`
+  - Test cases: 27 tests covering add/remove corporations, comparison data, ranking, save/load
 
 **🟢 GREEN: Implement to Make Tests Pass**
-- [ ] **Task 6.2**: CompareView 구현
-  - File: `src/views/compare_view.py`
-  - 기업 선택, 비교 테이블, 차트
+- [x] **Task 6.2**: CompareService 구현
+  - File: `src/services/compare_service.py`
+  - Corporation management (max 5), comparison table data, ranking, chart data
 
-- [ ] **Task 6.3**: 비교 차트 컴포넌트
-  - 레이더 차트 또는 그룹 바 차트
+- [x] **Task 6.3**: CompareView 구현
+  - File: `src/views/compare_view.py`
+  - 기업 선택, 비교 테이블, 차트, year selector
+
+- [x] **Task 6.4**: 비교 차트 컴포넌트
+  - BarChart 기반 비교 (Flet 0.80+ 호환)
+  - 재무비율, 수익성, 건전성 점수 비교
 
 **🔵 REFACTOR: Clean Up Code**
-- [ ] **Task 6.4**: 비교 기업 저장/불러오기
+- [x] **Task 6.5**: 비교 기업 저장/불러오기
+  - JSON 파일 기반 로컬 저장
+  - Save/Load dialog 구현
 
 #### Quality Gate ✋
 
+**TDD Compliance**:
+- [x] Tests written FIRST and initially failed
+- [x] Production code written to make tests pass
+- [x] All 59 new tests passing (27 unit + 32 integration)
+
+**Build & Tests**:
+- [x] `pytest tests/unit/test_compare_service.py -v` 통과 (27 tests)
+- [x] `pytest tests/integration/test_compare_view.py -v` 통과 (32 tests)
+- [x] `pytest tests/ -v` 전체 통과 (232 tests)
+- [x] `ruff check src/` 통과
+- [x] `black --check src/` 통과
+
 **Functionality**:
-- [ ] 최대 5개 기업 동시 비교
-- [ ] 주요 지표 비교 테이블
-- [ ] 시각적 비교 차트
+- [x] 최대 5개 기업 동시 비교
+- [x] 주요 지표 비교 테이블
+- [x] 시각적 비교 차트
 
 ---
 
@@ -647,11 +667,11 @@ git reset --hard HEAD~n
 - **Phase 3 (기업 목록 UI)**: ✅ 100%
 - **Phase 4 (기업 상세)**: ✅ 100%
 - **Phase 5 (차트/분석)**: ✅ 100%
-- **Phase 6 (기업 비교)**: ⏳ 0%
+- **Phase 6 (기업 비교)**: ✅ 100%
 - **Phase 7 (데이터 수집)**: ⏳ 0%
 - **Phase 8 (빌드/배포)**: ⏳ 0%
 
-**Overall Progress**: 62.5% complete (5/8 phases)
+**Overall Progress**: 75% complete (6/8 phases)
 
 ### Time Tracking
 | Phase | Estimated | Actual | Variance |
@@ -661,7 +681,7 @@ git reset --hard HEAD~n
 | Phase 3 | 4 hours | ~1 hour | -3 hours |
 | Phase 4 | 4 hours | ~1 hour | -3 hours |
 | Phase 5 | 4 hours | ~1 hour | -3 hours |
-| Phase 6 | 3 hours | - | - |
+| Phase 6 | 3 hours | ~1 hour | -2 hours |
 | Phase 7 | 4 hours | - | - |
 | Phase 8 | 3 hours | - | - |
 | **Total** | 30 hours | - | - |
@@ -669,9 +689,9 @@ git reset --hard HEAD~n
 ### Platform Testing Status
 | Platform | Phase 1 | Phase 2 | Phase 3 | Phase 4 | Phase 5 | Phase 6 | Phase 7 | Phase 8 |
 |----------|---------|---------|---------|---------|---------|---------|---------|---------|
-| Windows | ✅ | ✅ | ✅ | ✅ | ✅ | ⏳ | ⏳ | ⏳ |
-| macOS | ✅ | ✅ | ✅ | ✅ | ✅ | ⏳ | ⏳ | ⏳ |
-| Web | ✅ | ✅ | ✅ | ✅ | ✅ | ⏳ | ⏳ | ⏳ |
+| Windows | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ⏳ | ⏳ |
+| macOS | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ⏳ | ⏳ |
+| Web | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ⏳ | ⏳ |
 
 ---
 
@@ -718,6 +738,14 @@ git reset --hard HEAD~n
 - `zip()` 함수에 `strict=False` 매개변수 추가 권장 (ruff B905)
 - AnalysisService에서 FinancialService를 composition으로 활용하여 코드 재사용
 
+### Phase 6 Learnings
+- CompareService에서 최대 5개 기업 제한 구현: 간단한 리스트 기반 관리
+- 비교 세트 저장/불러오기: `~/.dart-db-flet/data/comparison_sets.json` 로컬 파일 사용
+- BarChart 컴포넌트 재사용으로 그룹 비교 차트 구현
+- HealthScoreGauge 컴포넌트로 재무 건전성 비교 시각화
+- ft.Chip 컴포넌트로 선택된 기업 표시 및 삭제 기능 구현
+- ft.AlertDialog로 저장/불러오기 다이얼로그 구현
+
 ---
 
 ## 📚 References
@@ -749,5 +777,5 @@ git reset --hard HEAD~n
 ---
 
 **Plan Status**: 🔄 In Progress
-**Next Action**: Phase 6 시작 - 기업 비교 기능
+**Next Action**: Phase 7 시작 - 데이터 수집 및 동기화
 **Blocked By**: None

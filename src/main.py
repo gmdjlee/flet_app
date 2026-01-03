@@ -6,6 +6,7 @@ import flet as ft
 
 from src.components.navigation import create_navigation
 from src.views.analytics_view import AnalyticsView
+from src.views.compare_view import CompareView
 from src.views.corporations_view import CorporationsView
 from src.views.detail_view import DetailView
 from src.views.home_view import HomeView
@@ -16,6 +17,7 @@ ROUTES: dict[str, Callable[[ft.Page], ft.View]] = {
     "/": HomeView,
     "/corporations": CorporationsView,
     "/analytics": AnalyticsView,
+    "/compare": CompareView,
     "/settings": SettingsView,
 }
 
