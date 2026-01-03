@@ -2,7 +2,7 @@
 
 **Status**: 🔄 In Progress
 **Started**: 2026-01-02
-**Last Updated**: 2026-01-02 (Phase 3 completed)
+**Last Updated**: 2026-01-02 (Phase 4 completed)
 **Estimated Completion**: 2026-01-20
 
 **Framework**: Flet 0.8+
@@ -409,41 +409,57 @@ flet run src/main.py
 ### Phase 4: 기업 상세 및 재무제표 화면
 **Goal**: 기업 상세 정보, 재무제표 테이블, 기본 지표
 **Estimated Time**: 4 hours
-**Status**: ⏳ Pending
+**Status**: ✅ Completed
 
 #### Tasks
 
 **🔴 RED: Write Failing Tests First**
-- [ ] **Test 4.1**: Financial 서비스 테스트
+- [x] **Test 4.1**: Financial 서비스 테스트
   - File: `tests/unit/test_financial_service.py`
-  - Test cases: 재무제표 조회, 비율 계산
+  - Test cases: 23 tests covering CRUD, ratio calculation, YoY growth, multi-year comparison
 
-- [ ] **Test 4.2**: DetailView 테스트
+- [x] **Test 4.2**: DetailView 테스트
   - File: `tests/integration/test_detail_view.py`
+  - Test cases: 34 tests covering initialization, tabs, navigation, formatting, responsive layout
 
 **🟢 GREEN: Implement to Make Tests Pass**
-- [ ] **Task 4.3**: Financial 서비스 구현
+- [x] **Task 4.3**: Financial 서비스 구현
   - File: `src/services/financial_service.py`
-  - dart-db의 로직 이식
+  - Key accounts, ratio calculation (debt ratio, ROE, ROA, margins), YoY growth
 
-- [ ] **Task 4.4**: FinancialTable 컴포넌트
+- [x] **Task 4.4**: FinancialTable 컴포넌트
   - File: `src/components/financial_table.py`
-  - DataTable 기반 재무제표
+  - DataTable 기반 재무제표, FinancialSummaryCard, RatioIndicator
 
-- [ ] **Task 4.5**: DetailView 구현
+- [x] **Task 4.5**: DetailView 구현
   - File: `src/views/detail_view.py`
-  - 탭: 기본정보, 재무제표, 재무비율
+  - SegmentedButton 탭: 기본정보, 재무제표, 재무비율
 
 **🔵 REFACTOR: Clean Up Code**
-- [ ] **Task 4.6**: 숫자 포맷팅 (억원, %)
-- [ ] **Task 4.7**: 연도별 비교 표시
+- [x] **Task 4.6**: 숫자 포맷팅 (억원, %)
+  - File: `src/utils/formatters.py`
+  - format_amount, format_amount_short, format_percentage, format_growth
+- [x] **Task 4.7**: 연도별 비교 표시
+  - YoY change indicator with color-coded arrows
 
 #### Quality Gate ✋
 
+**TDD Compliance**:
+- [x] Tests written FIRST and initially failed
+- [x] Production code written to make tests pass
+- [x] All 128 tests passing (57 new tests for Phase 4)
+
+**Build & Tests**:
+- [x] `pytest tests/unit/test_financial_service.py -v` 통과 (23 tests)
+- [x] `pytest tests/integration/test_detail_view.py -v` 통과 (34 tests)
+- [x] `pytest tests/ -v` 전체 통과 (128 tests)
+- [x] `ruff check src/` 통과
+- [x] `black --check src/` 통과
+
 **Functionality**:
-- [ ] 재무제표 3개년 데이터 표시
-- [ ] 재무비율 계산 정확성 검증
-- [ ] 탭 전환 동작
+- [x] 재무제표 3개년 데이터 표시
+- [x] 재무비율 계산 정확성 검증
+- [x] 탭 전환 동작
 
 ---
 
@@ -617,13 +633,13 @@ git reset --hard HEAD~n
 - **Phase 1 (프로젝트 기반)**: ✅ 100%
 - **Phase 2 (DART 연동)**: ✅ 100%
 - **Phase 3 (기업 목록 UI)**: ✅ 100%
-- **Phase 4 (기업 상세)**: ⏳ 0%
+- **Phase 4 (기업 상세)**: ✅ 100%
 - **Phase 5 (차트/분석)**: ⏳ 0%
 - **Phase 6 (기업 비교)**: ⏳ 0%
 - **Phase 7 (데이터 수집)**: ⏳ 0%
 - **Phase 8 (빌드/배포)**: ⏳ 0%
 
-**Overall Progress**: 37.5% complete (3/8 phases)
+**Overall Progress**: 50% complete (4/8 phases)
 
 ### Time Tracking
 | Phase | Estimated | Actual | Variance |
@@ -631,7 +647,7 @@ git reset --hard HEAD~n
 | Phase 1 | 4 hours | ~2 hours | -2 hours |
 | Phase 2 | 4 hours | ~1 hour | -3 hours |
 | Phase 3 | 4 hours | ~1 hour | -3 hours |
-| Phase 4 | 4 hours | - | - |
+| Phase 4 | 4 hours | ~1 hour | -3 hours |
 | Phase 5 | 4 hours | - | - |
 | Phase 6 | 3 hours | - | - |
 | Phase 7 | 4 hours | - | - |
@@ -641,9 +657,9 @@ git reset --hard HEAD~n
 ### Platform Testing Status
 | Platform | Phase 1 | Phase 2 | Phase 3 | Phase 4 | Phase 5 | Phase 6 | Phase 7 | Phase 8 |
 |----------|---------|---------|---------|---------|---------|---------|---------|---------|
-| Windows | ✅ | ✅ | ✅ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ |
-| macOS | ✅ | ✅ | ✅ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ |
-| Web | ✅ | ✅ | ✅ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ |
+| Windows | ✅ | ✅ | ✅ | ✅ | ⏳ | ⏳ | ⏳ | ⏳ |
+| macOS | ✅ | ✅ | ✅ | ✅ | ⏳ | ⏳ | ⏳ | ⏳ |
+| Web | ✅ | ✅ | ✅ | ✅ | ⏳ | ⏳ | ⏳ | ⏳ |
 
 ---
 
@@ -712,5 +728,5 @@ git reset --hard HEAD~n
 ---
 
 **Plan Status**: 🔄 In Progress
-**Next Action**: Phase 4 시작 - 기업 상세 및 재무제표 화면
+**Next Action**: Phase 5 시작 - 차트 및 분석 기능
 **Blocked By**: None

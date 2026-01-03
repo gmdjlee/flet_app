@@ -6,6 +6,7 @@ import flet as ft
 
 from src.components.navigation import create_navigation
 from src.views.corporations_view import CorporationsView
+from src.views.detail_view import DetailView
 from src.views.home_view import HomeView
 from src.views.settings_view import SettingsView
 
@@ -115,8 +116,13 @@ def create_app(page: ft.Page) -> None:
         current_route = page.route or "/"
         selected_index = get_nav_index_from_route(current_route)
 
-        view_class = ROUTES.get(current_route, ROUTES["/"])
-        current_view = view_class(page)
+        # Handle detail routes (/detail/{corp_code})
+        if current_route.startswith("/detail/"):
+            corp_code = current_route.split("/")[-1]
+            current_view = DetailView(page, corp_code)
+        else:
+            view_class = ROUTES.get(current_route, ROUTES["/"])
+            current_view = view_class(page)
 
         # Create navigation
         nav_rail = create_navigation(
