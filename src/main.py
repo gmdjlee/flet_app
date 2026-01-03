@@ -163,7 +163,7 @@ def create_app(page: ft.Page) -> None:
 
 def main() -> None:
     """Application entry point."""
-    ft.app(target=create_app)
+    ft.run(create_app)
 
 
 if __name__ == "__main__":

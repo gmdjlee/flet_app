@@ -12,7 +12,7 @@ class HomeView(ft.View):
         Args:
             page: Flet page instance
         """
-        self.page = page
+        self._page_ref = page
         super().__init__(
             route="/",
             controls=[self._build()],
@@ -107,12 +107,12 @@ class HomeView(ft.View):
                         ft.ElevatedButton(
                             text="기업 검색",
                             icon=ft.Icons.SEARCH,
-                            on_click=lambda _: self.page.go("/corporations"),
+                            on_click=lambda _: self._page_ref.go("/corporations"),
                         ),
                         ft.ElevatedButton(
                             text="데이터 동기화",
                             icon=ft.Icons.SYNC,
-                            on_click=lambda _: self.page.go("/settings"),
+                            on_click=lambda _: self._page_ref.go("/settings"),
                         ),
                     ],
                     spacing=10,
