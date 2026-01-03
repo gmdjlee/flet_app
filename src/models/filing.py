@@ -1,11 +1,16 @@
 """Filing model for storing DART disclosure reports."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import DateTime, ForeignKey, Index, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.models.database import Base
+
+
+def _utc_now() -> datetime:
+    """Return current UTC time as timezone-aware datetime."""
+    return datetime.now(timezone.utc)
 
 
 class Filing(Base):
@@ -42,7 +47,7 @@ class Filing(Base):
     rm: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utc_now, nullable=False)
 
     # Indexes
     __table_args__ = (Index("ix_filings_corp_rcept", "corp_code", "rcept_dt"),)
