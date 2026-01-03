@@ -341,7 +341,7 @@ class DetailView(ft.View):
                 ft.dropdown.Option(key="BS", text="재무상태표"),
                 ft.dropdown.Option(key="IS", text="손익계산서"),
             ],
-            on_change=self._on_statement_type_change,
+            on_select=self._on_statement_type_change,
         )
 
         # Get statements for current view
