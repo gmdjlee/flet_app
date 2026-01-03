@@ -5,6 +5,8 @@ from datetime import datetime
 
 import flet as ft
 
+from src.models.database import get_engine, get_session
+from src.services.dart_service import DartService
 from src.services.sync_service import (
     SettingsManager,
     SyncLogger,
@@ -97,6 +99,33 @@ class SettingsView(ft.View):
             horizontal_alignment=ft.CrossAxisAlignment.START,
             scroll=ft.ScrollMode.AUTO,
         )
+
+    def _get_or_create_sync_service(self) -> SyncService | None:
+        """Get existing or create new SyncService instance.
+
+        Returns:
+            SyncService instance or None if API key is not configured.
+        """
+        if self._sync_service is not None:
+            return self._sync_service
+
+        api_key = self._settings_manager.get_api_key()
+        if not api_key:
+            return None
+
+        try:
+            dart_service = DartService(api_key=api_key)
+            engine = get_engine()
+            session = get_session(engine)
+            self._sync_service = SyncService(
+                dart_service=dart_service,
+                session=session,
+                sync_logger=self._sync_logger,
+                settings_manager=self._settings_manager,
+            )
+            return self._sync_service
+        except Exception:
+            return None
 
     def _build(self) -> ft.Control:
         """Build the settings view content."""
@@ -433,8 +462,9 @@ class SettingsView(ft.View):
 
     async def _run_corporation_sync(self) -> None:
         """Run corporation list synchronization."""
-        if not self._sync_service:
-            self._show_snackbar("동기화 서비스가 초기화되지 않았습니다.", is_error=True)
+        sync_service = self._get_or_create_sync_service()
+        if not sync_service:
+            self._show_snackbar("동기화 서비스를 초기화할 수 없습니다. API 키를 확인해주세요.", is_error=True)
             self._on_sync_finished(
                 SyncProgress(
                     status=SyncStatus.FAILED,
@@ -446,8 +476,8 @@ class SettingsView(ft.View):
             )
             return
 
-        self._sync_service.set_progress_callback(self._progress_callback)
-        await self._sync_service.sync_corporation_list()
+        sync_service.set_progress_callback(self._progress_callback)
+        await sync_service.sync_corporation_list()
 
     def _on_sync_financials(self, e: ft.ControlEvent) -> None:
         """Handle sync financials event."""
@@ -470,8 +500,9 @@ class SettingsView(ft.View):
 
     async def _run_financial_sync(self) -> None:
         """Run financial statements synchronization."""
-        if not self._sync_service:
-            self._show_snackbar("동기화 서비스가 초기화되지 않았습니다.", is_error=True)
+        sync_service = self._get_or_create_sync_service()
+        if not sync_service:
+            self._show_snackbar("동기화 서비스를 초기화할 수 없습니다. API 키를 확인해주세요.", is_error=True)
             self._on_sync_finished(
                 SyncProgress(
                     status=SyncStatus.FAILED,
@@ -483,8 +514,8 @@ class SettingsView(ft.View):
             )
             return
 
-        self._sync_service.set_progress_callback(self._progress_callback)
-        await self._sync_service.sync_all_financial_statements()
+        sync_service.set_progress_callback(self._progress_callback)
+        await sync_service.sync_all_financial_statements()
 
     def _on_cancel_sync(self, e: ft.ControlEvent) -> None:
         """Handle cancel sync event."""
