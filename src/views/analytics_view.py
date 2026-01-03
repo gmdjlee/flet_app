@@ -83,7 +83,7 @@ class AnalyticsView(ft.View):
                 ft.dropdown.Option(key="ratios", text="재무비율"),
                 ft.dropdown.Option(key="growth", text="성장률"),
             ],
-            on_change=self._on_analysis_type_change,
+            on_select=self._on_analysis_type_change,
         )
         self.analysis_type_selector = self.chart_type_selector
 
