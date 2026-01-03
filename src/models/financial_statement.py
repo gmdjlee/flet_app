@@ -1,11 +1,16 @@
 """Financial Statement model for storing financial data."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.models.database import Base
+
+
+def _utc_now() -> datetime:
+    """Return current UTC time as timezone-aware datetime."""
+    return datetime.now(timezone.utc)
 
 
 class FinancialStatement(Base):
@@ -65,9 +70,9 @@ class FinancialStatement(Base):
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="KRW")
 
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utc_now, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+        DateTime, default=_utc_now, onupdate=_utc_now, nullable=False
     )
 
     # Indexes
