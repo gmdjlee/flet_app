@@ -371,7 +371,7 @@ class SettingsView(ft.View):
                         ],
                         spacing=10,
                     ),
-                    padding=ft.padding.symmetric(vertical=5),
+                    padding=ft.Padding.symmetric(vertical=5),
                 )
             )
 
