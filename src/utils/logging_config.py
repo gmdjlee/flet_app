@@ -7,8 +7,11 @@ from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Any
 
-# Default data directory for logs
-LOG_DIR = Path.home() / ".dart-db-flet" / "data" / "app_logs"
+# Project root directory (src/utils/logging_config.py -> project root)
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+
+# Default log directory in project root
+LOG_DIR = PROJECT_ROOT / "log"
 
 # Log format
 LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -37,7 +40,7 @@ class LogConfig:
         """Set up logging configuration for the application.
 
         Args:
-            log_dir: Directory for log files. Defaults to ~/.dart-db-flet/data/app_logs
+            log_dir: Directory for log files. Defaults to project_root/log
             log_level: Logging level (default: INFO)
             console_output: Enable console logging (default: True)
             file_output: Enable file logging (default: True)
