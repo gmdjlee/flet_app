@@ -108,12 +108,12 @@ class HomeView(ft.View):
                 ),
                 ft.Row(
                     controls=[
-                        ft.Button(
+                        ft.ElevatedButton(
                             "기업 검색",
                             icon=ft.Icons.SEARCH,
                             on_click=lambda _: self._page_ref.go("/corporations"),
                         ),
-                        ft.Button(
+                        ft.ElevatedButton(
                             "데이터 동기화",
                             icon=ft.Icons.SYNC,
                             on_click=lambda _: self._page_ref.go("/settings"),

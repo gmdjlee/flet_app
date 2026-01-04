@@ -74,12 +74,13 @@ class DetailView(ft.View):
         # Tab state
         self.selected_tab_index = 0
 
-        # Tab buttons - using TabBar for Flet 1.0+ compatibility
-        self.tab_buttons = ft.TabBar(
+        # Tab buttons - using Tabs for Flet 1.0+ compatibility
+        self.tab_buttons = ft.Tabs(
+            selected_index=0,
             tabs=[
-                ft.Tab(label="기본 정보", icon=ft.Icons.INFO_OUTLINED),
-                ft.Tab(label="재무제표", icon=ft.Icons.TABLE_CHART),
-                ft.Tab(label="재무비율", icon=ft.Icons.PIE_CHART),
+                ft.Tab(text="기본 정보", icon=ft.Icons.INFO_OUTLINED),
+                ft.Tab(text="재무제표", icon=ft.Icons.TABLE_CHART),
+                ft.Tab(text="재무비율", icon=ft.Icons.PIE_CHART),
             ],
             on_change=self._on_tab_change,
         )
@@ -93,7 +94,7 @@ class DetailView(ft.View):
         self.year_dropdown = ft.Dropdown(
             label="사업연도",
             width=150,
-            on_select=self._on_year_change,
+            on_change=self._on_year_change,
         )
 
         # Build view
@@ -329,12 +330,12 @@ class DetailView(ft.View):
                     horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                     spacing=10,
                 ),
-                alignment=ft.alignment.Alignment(0, 0),
+                alignment=ft.alignment.center,
                 expand=True,
                 padding=50,
             )
 
-        # Statement type selector - using Dropdown for Flet 0.70+ compatibility
+        # Statement type selector - using Dropdown for Flet 1.0+ compatibility
         self.statement_type_buttons = ft.Dropdown(
             label="재무제표 유형",
             value="BS",
@@ -343,7 +344,7 @@ class DetailView(ft.View):
                 ft.dropdown.Option(key="BS", text="재무상태표"),
                 ft.dropdown.Option(key="IS", text="손익계산서"),
             ],
-            on_select=self._on_statement_type_change,
+            on_change=self._on_statement_type_change,
         )
 
         # Get statements for current view
@@ -411,7 +412,7 @@ class DetailView(ft.View):
                     horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                     spacing=10,
                 ),
-                alignment=ft.alignment.Alignment(0, 0),
+                alignment=ft.alignment.center,
                 expand=True,
                 padding=50,
             )
@@ -499,7 +500,7 @@ class DetailView(ft.View):
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                 spacing=10,
             ),
-            alignment=ft.alignment.Alignment(0, 0),
+            alignment=ft.alignment.center,
             expand=True,
         )
 

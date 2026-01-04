@@ -71,11 +71,11 @@ class AnalyticsView(ft.View):
         self.corp_dropdown = ft.Dropdown(
             label="기업 선택",
             width=300,
-            on_select=self._on_corporation_change,
+            on_change=self._on_corporation_change,
         )
         self.corporation_selector = self.corp_dropdown
 
-        # Analysis type selector - using Dropdown instead of SegmentedButton for Flet 0.70+ compatibility
+        # Analysis type selector - using Dropdown for Flet 1.0+ compatibility
         self.chart_type_selector = ft.Dropdown(
             label="분석 유형",
             value="revenue",
@@ -86,7 +86,7 @@ class AnalyticsView(ft.View):
                 ft.dropdown.Option(key="ratios", text="재무비율"),
                 ft.dropdown.Option(key="growth", text="성장률"),
             ],
-            on_select=self._on_analysis_type_change,
+            on_change=self._on_analysis_type_change,
         )
         self.analysis_type_selector = self.chart_type_selector
 
@@ -218,7 +218,7 @@ class AnalyticsView(ft.View):
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                 spacing=10,
             ),
-            alignment=ft.alignment.Alignment(0, 0),
+            alignment=ft.alignment.center,
             expand=True,
             padding=50,
         )
@@ -743,7 +743,7 @@ class AnalyticsView(ft.View):
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                 spacing=10,
             ),
-            alignment=ft.alignment.Alignment(0, 0),
+            alignment=ft.alignment.center,
             expand=True,
             padding=50,
         )
@@ -773,7 +773,7 @@ class AnalyticsView(ft.View):
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                 spacing=10,
             ),
-            alignment=ft.alignment.Alignment(0, 0),
+            alignment=ft.alignment.center,
             expand=True,
             padding=50,
         )

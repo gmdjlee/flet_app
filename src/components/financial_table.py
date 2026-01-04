@@ -95,7 +95,7 @@ class FinancialTable(ft.Container):
                 spacing=10,
             ),
             padding=30,
-            alignment=ft.alignment.Alignment(0, 0),
+            alignment=ft.alignment.center,
         )
 
     def _build_columns(self) -> list[ft.DataColumn]:

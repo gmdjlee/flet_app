@@ -351,7 +351,7 @@ class CorporationsView(ft.View):
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
             ),
             padding=50,
-            alignment=ft.alignment.Alignment(0, 0),
+            alignment=ft.alignment.center,
             expand=True,
         )
 
