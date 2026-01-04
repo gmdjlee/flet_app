@@ -217,7 +217,7 @@ class CorporationListTile(ft.ListTile):
                 height=36,
                 bgcolor=badge_color,
                 border_radius=18,
-                alignment=ft.alignment.Alignment(0, 0),
+                alignment=ft.alignment.center,
             ),
             title=ft.Text(
                 corporation.corp_name,

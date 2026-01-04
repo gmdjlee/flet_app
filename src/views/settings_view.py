@@ -60,56 +60,37 @@ class SettingsView(ft.View):
         self.progress_text = ft.Text("", size=12, visible=False)
         self.sync_status_text = ft.Text("", size=12, color=ft.Colors.GREY_600)
 
-        # Sync buttons (Flet 0.70+ compatibility)
-        self.sync_corp_button = ft.Button(
+        # Sync buttons (Flet 1.0+ compatibility)
+        self.sync_corp_button = ft.ElevatedButton(
             "기업 목록 동기화",
             icon=ft.Icons.SYNC,
             on_click=self._on_sync_corporations,
-            style=ft.ButtonStyle(
-                bgcolor=ft.Colors.PRIMARY,
-                color=ft.Colors.ON_PRIMARY,
-            ),
         )
-        self.sync_fin_button = ft.Button(
+        self.sync_fin_button = ft.ElevatedButton(
             "재무제표 동기화",
             icon=ft.Icons.SYNC_ALT,
             on_click=self._on_sync_financials,
             disabled=True,  # Requires API key
-            style=ft.ButtonStyle(
-                bgcolor=ft.Colors.PRIMARY,
-                color=ft.Colors.ON_PRIMARY,
-            ),
         )
-        self.cancel_button = ft.Button(
+        self.cancel_button = ft.OutlinedButton(
             "취소",
             icon=ft.Icons.CANCEL,
             on_click=self._on_cancel_sync,
             visible=False,
-            style=ft.ButtonStyle(
-                side=ft.BorderSide(1, ft.Colors.GREY_400),
-            ),
         )
 
         # Resume buttons
-        self.resume_corp_button = ft.Button(
+        self.resume_corp_button = ft.FilledButton(
             "기업 목록 재개",
             icon=ft.Icons.PLAY_ARROW,
             on_click=self._on_resume_corporations,
             visible=False,
-            style=ft.ButtonStyle(
-                bgcolor=ft.Colors.ORANGE,
-                color=ft.Colors.WHITE,
-            ),
         )
-        self.resume_fin_button = ft.Button(
+        self.resume_fin_button = ft.FilledButton(
             "재무제표 재개",
             icon=ft.Icons.PLAY_ARROW,
             on_click=self._on_resume_financials,
             visible=False,
-            style=ft.ButtonStyle(
-                bgcolor=ft.Colors.ORANGE,
-                color=ft.Colors.WHITE,
-            ),
         )
 
         # Year selection for financial sync
@@ -121,14 +102,14 @@ class SettingsView(ft.View):
             width=120,
             value=str(current_year - 2),
             options=year_options,
-            on_select=self._on_year_selection_change,
+            on_change=self._on_year_selection_change,
         )
         self.end_year_dropdown = ft.Dropdown(
             label="끝 년도",
             width=120,
             value=str(current_year),
             options=year_options,
-            on_select=self._on_year_selection_change,
+            on_change=self._on_year_selection_change,
         )
 
         # Checkpoint info container
@@ -233,14 +214,10 @@ class SettingsView(ft.View):
                         ft.Row(
                             controls=[
                                 self.api_key_field,
-                                ft.Button(
+                                ft.ElevatedButton(
                                     "저장",
                                     icon=ft.Icons.SAVE,
                                     on_click=self._on_save_api_key,
-                                    style=ft.ButtonStyle(
-                                        bgcolor=ft.Colors.PRIMARY,
-                                        color=ft.Colors.ON_PRIMARY,
-                                    ),
                                 ),
                                 ft.IconButton(
                                     icon=ft.Icons.CHECK_CIRCLE_OUTLINE,
@@ -365,21 +342,15 @@ class SettingsView(ft.View):
                         ),
                         ft.Row(
                             controls=[
-                                ft.Button(
+                                ft.OutlinedButton(
                                     "데이터 내보내기",
                                     icon=ft.Icons.DOWNLOAD,
                                     on_click=self._on_export_data,
-                                    style=ft.ButtonStyle(
-                                        side=ft.BorderSide(1, ft.Colors.GREY_400),
-                                    ),
                                 ),
-                                ft.Button(
+                                ft.OutlinedButton(
                                     "캐시 삭제",
                                     icon=ft.Icons.DELETE_OUTLINE,
                                     on_click=self._on_clear_cache,
-                                    style=ft.ButtonStyle(
-                                        side=ft.BorderSide(1, ft.Colors.GREY_400),
-                                    ),
                                 ),
                             ],
                             spacing=10,
@@ -398,32 +369,20 @@ class SettingsView(ft.View):
                         ),
                         ft.Row(
                             controls=[
-                                ft.Button(
+                                ft.OutlinedButton(
                                     "기업 목록 초기화",
                                     icon=ft.Icons.DELETE_FOREVER,
                                     on_click=self._on_reset_corporations,
-                                    style=ft.ButtonStyle(
-                                        bgcolor=ft.Colors.RED_100,
-                                        color=ft.Colors.RED_700,
-                                    ),
                                 ),
-                                ft.Button(
+                                ft.OutlinedButton(
                                     "재무제표 초기화",
                                     icon=ft.Icons.DELETE_FOREVER,
                                     on_click=self._on_reset_financials,
-                                    style=ft.ButtonStyle(
-                                        bgcolor=ft.Colors.RED_100,
-                                        color=ft.Colors.RED_700,
-                                    ),
                                 ),
-                                ft.Button(
+                                ft.FilledButton(
                                     "전체 데이터 초기화",
                                     icon=ft.Icons.DELETE_FOREVER,
                                     on_click=self._on_reset_all_data,
-                                    style=ft.ButtonStyle(
-                                        bgcolor=ft.Colors.RED_700,
-                                        color=ft.Colors.WHITE,
-                                    ),
                                 ),
                             ],
                             spacing=10,
@@ -577,7 +536,7 @@ class SettingsView(ft.View):
                         ],
                         spacing=10,
                     ),
-                    padding=ft.Padding.symmetric(vertical=5),
+                    padding=ft.padding.symmetric(vertical=5),
                 )
             )
 

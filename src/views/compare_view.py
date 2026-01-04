@@ -200,7 +200,7 @@ class CompareView(ft.View):
             label="기업 추가",
             hint_text="비교할 기업 선택",
             width=300,
-            on_select=self._on_corp_selected,
+            on_change=self._on_corp_selected,
         )
 
     def _build_chart_type_selector(self) -> ft.Control:
@@ -216,7 +216,7 @@ class CompareView(ft.View):
                 ft.dropdown.Option(key="profitability", text="수익성"),
                 ft.dropdown.Option(key="ratios", text="재무비율"),
             ],
-            on_select=self._on_chart_type_change,
+            on_change=self._on_chart_type_change,
         )
 
     def _build_metric_selector(self) -> ft.Control:
@@ -234,7 +234,7 @@ class CompareView(ft.View):
                 ft.dropdown.Option(key="roe", text="ROE"),
                 ft.dropdown.Option(key="operating_margin", text="영업이익률"),
             ],
-            on_select=self._on_metric_change,
+            on_change=self._on_metric_change,
         )
 
     def _build_year_selector(self) -> ft.Control:
@@ -247,7 +247,7 @@ class CompareView(ft.View):
             value=self.selected_year,
             width=120,
             options=[ft.dropdown.Option(key=y, text=y) for y in years],
-            on_select=self._on_year_change,
+            on_change=self._on_year_change,
         )
 
     def _load_corporations(self) -> None:
@@ -404,7 +404,7 @@ class CompareView(ft.View):
         return ft.DataTable(
             columns=columns,
             rows=rows,
-            border=ft.Border.all(1, ft.Colors.GREY_300),
+            border=ft.border.all(1, ft.Colors.GREY_300),
             border_radius=8,
             column_spacing=30,
             heading_row_height=50,
@@ -435,9 +435,9 @@ class CompareView(ft.View):
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                 spacing=8,
             ),
-            alignment=ft.alignment.Alignment(0, 0),
+            alignment=ft.alignment.center,
             padding=40,
-            border=ft.Border.all(1, ft.Colors.GREY_300),
+            border=ft.border.all(1, ft.Colors.GREY_300),
             border_radius=8,
         )
 
@@ -633,9 +633,9 @@ class CompareView(ft.View):
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                 spacing=8,
             ),
-            alignment=ft.alignment.Alignment(0, 0),
+            alignment=ft.alignment.center,
             padding=40,
-            border=ft.Border.all(1, ft.Colors.GREY_300),
+            border=ft.border.all(1, ft.Colors.GREY_300),
             border_radius=8,
         )
 
