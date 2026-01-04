@@ -106,6 +106,25 @@ class SettingsView(ft.View):
             ),
         )
 
+        # Year selection for financial sync
+        current_year = datetime.now().year
+        year_options = [ft.dropdown.Option(str(y)) for y in range(current_year - 10, current_year + 1)]
+
+        self.start_year_dropdown = ft.Dropdown(
+            label="시작 년도",
+            width=120,
+            value=str(current_year - 2),
+            options=year_options,
+            on_change=self._on_year_selection_change,
+        )
+        self.end_year_dropdown = ft.Dropdown(
+            label="끝 년도",
+            width=120,
+            value=str(current_year),
+            options=year_options,
+            on_change=self._on_year_selection_change,
+        )
+
         # Checkpoint info container
         self.checkpoint_info_container = ft.Container(
             content=ft.Column(controls=[], spacing=5),
@@ -249,6 +268,29 @@ class SettingsView(ft.View):
                             "DART에서 최신 기업 목록과 재무 데이터를 가져옵니다.",
                             size=12,
                             color=ft.Colors.GREY_600,
+                        ),
+                        # Year selection for financial statements sync
+                        ft.Container(
+                            content=ft.Column(
+                                controls=[
+                                    ft.Text(
+                                        "재무제표 동기화 년도 범위",
+                                        size=14,
+                                        weight=ft.FontWeight.W_500,
+                                    ),
+                                    ft.Row(
+                                        controls=[
+                                            self.start_year_dropdown,
+                                            ft.Text("~", size=16),
+                                            self.end_year_dropdown,
+                                        ],
+                                        spacing=10,
+                                        alignment=ft.MainAxisAlignment.START,
+                                    ),
+                                ],
+                                spacing=8,
+                            ),
+                            padding=ft.Padding(0, 10, 0, 5),
                         ),
                         # Checkpoint info section
                         self.checkpoint_info_container,
@@ -608,6 +650,38 @@ class SettingsView(ft.View):
         # Start sync in background
         asyncio.create_task(self._run_financial_sync())
 
+    def _get_selected_years(self) -> list[str]:
+        """Get selected years from the year range dropdowns.
+
+        Returns:
+            List of year strings in the selected range.
+        """
+        try:
+            start_year = int(self.start_year_dropdown.value)
+            end_year = int(self.end_year_dropdown.value)
+
+            # Ensure start <= end
+            if start_year > end_year:
+                start_year, end_year = end_year, start_year
+
+            return [str(y) for y in range(start_year, end_year + 1)]
+        except (ValueError, TypeError):
+            # Fallback to default (last 3 years)
+            current_year = datetime.now().year
+            return [str(y) for y in range(current_year - 2, current_year + 1)]
+
+    def _on_year_selection_change(self, e: ft.ControlEvent) -> None:
+        """Handle year selection change event."""
+        # Validate that start year is not greater than end year
+        try:
+            start_year = int(self.start_year_dropdown.value)
+            end_year = int(self.end_year_dropdown.value)
+
+            if start_year > end_year:
+                self._show_snackbar("시작 년도가 끝 년도보다 클 수 없습니다.", is_error=True)
+        except (ValueError, TypeError):
+            pass
+
     async def _run_financial_sync(self) -> None:
         """Run financial statements synchronization."""
         sync_service = self._get_or_create_sync_service()
@@ -624,8 +698,11 @@ class SettingsView(ft.View):
             )
             return
 
+        # Get selected years from UI
+        selected_years = self._get_selected_years()
+
         sync_service.set_progress_callback(self._progress_callback)
-        await sync_service.sync_all_financial_statements()
+        await sync_service.sync_all_financial_statements(years=selected_years)
 
     def _on_resume_corporations(self, e: ft.ControlEvent) -> None:
         """Handle resume corporations sync event."""
