@@ -12,6 +12,9 @@ from src.models.database import get_engine, get_session
 from src.services.compare_service import CompareService
 from src.services.corporation_service import CorporationService
 from src.utils.formatters import format_amount_short
+from src.utils.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 class CompareView(ft.View):

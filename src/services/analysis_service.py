@@ -6,6 +6,9 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from src.services.financial_service import FinancialService
+from src.utils.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 # Chart colors for consistent visualization
 CHART_COLORS = [
@@ -62,6 +65,7 @@ class AnalysisService:
         Returns:
             CAGR as percentage, or None if calculation fails.
         """
+        logger.debug(f"Calculating CAGR for {corp_code}, {account_nm}, {start_year}-{end_year}")
         if start_year == end_year:
             return None
 
@@ -80,6 +84,7 @@ class AnalysisService:
         )
 
         if start_value is None or end_value is None:
+            logger.debug(f"CAGR calculation failed: missing values")
             return None
 
         if start_value <= 0:
@@ -91,6 +96,7 @@ class AnalysisService:
 
         try:
             cagr = ((end_value / start_value) ** (1 / years) - 1) * 100
+            logger.debug(f"CAGR calculated: {cagr:.2f}%")
             return cagr
         except (ZeroDivisionError, ValueError):
             return None

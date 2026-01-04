@@ -10,6 +10,9 @@ from src.components.search_bar import SearchBar
 from src.models.corporation import Corporation
 from src.models.database import get_engine, get_session
 from src.services.corporation_service import CorporationService
+from src.utils.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 class CorporationsView(ft.View):
