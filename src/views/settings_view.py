@@ -115,14 +115,14 @@ class SettingsView(ft.View):
             width=120,
             value=str(current_year - 2),
             options=year_options,
-            on_change=self._on_year_selection_change,
+            on_select=self._on_year_selection_change,
         )
         self.end_year_dropdown = ft.Dropdown(
             label="끝 년도",
             width=120,
             value=str(current_year),
             options=year_options,
-            on_change=self._on_year_selection_change,
+            on_select=self._on_year_selection_change,
         )
 
         # Checkpoint info container
