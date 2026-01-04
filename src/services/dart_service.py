@@ -241,7 +241,7 @@ class DartService:
 
                 # Extract all financial statement types
                 return self._extract_xbrl_statements(
-                    xbrl, bsns_year, fs_div, has_consolidated
+                    xbrl, bsns_year, reprt_code, fs_div, has_consolidated
                 )
 
             statements = await loop.run_in_executor(None, extract_xbrl_data)
@@ -258,6 +258,7 @@ class DartService:
         self,
         xbrl: Any,
         bsns_year: str,
+        reprt_code: str,
         fs_div: str | None,
         has_consolidated: bool,
     ) -> list[dict[str, Any]]:
@@ -266,6 +267,7 @@ class DartService:
         Args:
             xbrl: XBRL data object from report.xbrl
             bsns_year: Target business year
+            reprt_code: Report code (11011=annual, etc.)
             fs_div: Financial statement division filter (CFS/OFS)
             has_consolidated: Whether consolidated statements exist
 
@@ -320,7 +322,7 @@ class DartService:
                     # Convert DataFrame rows to statement dictionaries
                     statements.extend(
                         self._dataframe_to_statements(
-                            df, sj_div, sj_nm, bsns_year, current_fs_div
+                            df, sj_div, sj_nm, bsns_year, reprt_code, current_fs_div
                         )
                     )
 
@@ -336,6 +338,7 @@ class DartService:
         sj_div: str,
         sj_nm: str,
         bsns_year: str,
+        reprt_code: str,
         fs_div: str,
     ) -> list[dict[str, Any]]:
         """Convert a DataFrame to list of statement dictionaries.
@@ -345,6 +348,7 @@ class DartService:
             sj_div: Statement division code (BS, IS, CIS, CF)
             sj_nm: Statement name in Korean
             bsns_year: Target business year
+            reprt_code: Report code (11011=annual, etc.)
             fs_div: Financial statement division (CFS/OFS)
 
         Returns:
@@ -388,6 +392,7 @@ class DartService:
                 "fs_div": fs_div,
                 "fs_nm": "연결재무제표" if fs_div == "CFS" else "재무제표",
                 "bsns_year": bsns_year,
+                "reprt_code": reprt_code,
             }
             statements.append(statement)
 
