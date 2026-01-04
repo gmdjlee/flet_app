@@ -703,8 +703,13 @@ class SyncService:
                 market=market,
             )
 
+            # Filter to only include KOSPI (Y) and KOSDAQ (K) listed companies
+            # Exclude KONEX (N) and other (E) companies
+            corps = [c for c in corps if c.get("corp_cls") in ("Y", "K")]
+
             total = len(corps)
             sync_log.total_items = total
+            sync_log.add_entry("INFO", f"KOSPI/KOSDAQ 기업 {total}개 필터링 완료")
 
             # Filter out already processed items if resuming
             if checkpoint and processed_corp_codes:
