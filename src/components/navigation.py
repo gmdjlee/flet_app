@@ -1,29 +1,30 @@
 """Navigation component for the application."""
 
 from collections.abc import Callable
+from typing import Any
 
 import flet as ft
 
 
 def create_navigation(
     page: ft.Page,
-    on_destination_change: Callable[[int], None] | None = None,
+    on_destination_change: Callable[[int], Any] | None = None,
     selected_index: int = 0,
 ) -> ft.NavigationRail:
     """Create the main navigation rail component.
 
     Args:
         page: Flet page instance
-        on_destination_change: Callback when navigation destination changes
+        on_destination_change: Callback when navigation destination changes (sync or async)
         selected_index: Currently selected index
 
     Returns:
         NavigationRail component
     """
 
-    def handle_change(e: ft.ControlEvent) -> None:
+    async def handle_change(e: ft.ControlEvent) -> None:
         if on_destination_change:
-            on_destination_change(e.control.selected_index)
+            await on_destination_change(e.control.selected_index)
 
     nav_rail = ft.NavigationRail(
         selected_index=selected_index,
@@ -67,23 +68,23 @@ def create_navigation(
 
 def create_mobile_navigation(
     page: ft.Page,
-    on_destination_change: Callable[[int], None] | None = None,
+    on_destination_change: Callable[[int], Any] | None = None,
     selected_index: int = 0,
 ) -> ft.NavigationBar:
     """Create the mobile navigation bar component.
 
     Args:
         page: Flet page instance
-        on_destination_change: Callback when navigation destination changes
+        on_destination_change: Callback when navigation destination changes (sync or async)
         selected_index: Currently selected index
 
     Returns:
         NavigationBar component for mobile devices
     """
 
-    def handle_change(e: ft.ControlEvent) -> None:
+    async def handle_change(e: ft.ControlEvent) -> None:
         if on_destination_change:
-            on_destination_change(e.control.selected_index)
+            await on_destination_change(e.control.selected_index)
 
     nav_bar = ft.NavigationBar(
         selected_index=selected_index,
