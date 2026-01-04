@@ -140,6 +140,14 @@ class DartService:
         except Exception as e:
             raise DartServiceError(f"Failed to fetch corporation info for {corp_code}: {e}") from e
 
+    # Report code to report_tp mapping for XBRL extraction
+    REPORT_CODE_TO_TYPE = {
+        "11011": "annual",   # 사업보고서 (연간)
+        "11012": "half",     # 반기보고서
+        "11013": "quarter",  # 1분기보고서
+        "11014": "quarter",  # 3분기보고서
+    }
+
     async def get_financial_statements(
         self,
         corp_code: str,
@@ -147,7 +155,10 @@ class DartService:
         reprt_code: str = "11011",
         fs_div: str | None = None,
     ) -> list[dict[str, Any]]:
-        """Fetch financial statements for a corporation.
+        """Fetch financial statements for a corporation using XBRL extraction.
+
+        Uses dart_fss.fs.extract() to extract financial statements from XBRL data,
+        which provides more comprehensive and accurate financial data.
 
         Args:
             corp_code: DART corporation code (8 digits).
@@ -155,7 +166,7 @@ class DartService:
             reprt_code: Report code (11011=annual, 11012=semi-annual,
                         11013=Q1, 11014=Q3).
             fs_div: Financial statement division filter (CFS=consolidated,
-                    OFS=separate). If None, returns both.
+                    OFS=separate). If None, returns consolidated first, then separate.
 
         Returns:
             List of financial statement items.
@@ -172,35 +183,29 @@ class DartService:
 
         try:
             loop = asyncio.get_event_loop()
-            # Use dart_fss.api.finance.fnltt_singl_acnt for financial statements
-            # (단일회사 주요계정 - Single company main accounts)
-            response = await loop.run_in_executor(
+
+            # Calculate start date for the business year
+            bgn_de = f"{bsns_year}0101"
+
+            # Map report code to report type
+            report_tp = self.REPORT_CODE_TO_TYPE.get(reprt_code, "annual")
+
+            # Extract financial statements using XBRL
+            fs_data = await loop.run_in_executor(
                 None,
-                lambda: dart_fss.api.finance.fnltt_singl_acnt(
+                lambda: dart_fss.fs.extract(
                     corp_code=corp_code,
-                    bsns_year=bsns_year,
-                    reprt_code=reprt_code,
+                    bgn_de=bgn_de,
+                    report_tp=report_tp,
+                    dataset="xbrl",  # Use XBRL data extraction
                 ),
             )
 
-            # Handle response format - API returns dict with 'list' key or None
-            if response is None:
+            if fs_data is None:
                 return []
 
-            # Extract list from response dict if needed
-            if isinstance(response, dict):
-                statements = response.get("list", [])
-            elif isinstance(response, list):
-                statements = response
-            else:
-                statements = []
-
-            if statements is None:
-                statements = []
-
-            # Filter by fs_div if specified
-            if fs_div:
-                statements = [s for s in statements if s.get("fs_div") == fs_div]
+            # Convert XBRL data to list of dictionaries
+            statements = self._convert_xbrl_to_statements(fs_data, bsns_year, fs_div)
 
             return statements
 
@@ -208,6 +213,85 @@ class DartService:
             raise DartServiceError(
                 f"Failed to fetch financial statements for {corp_code}: {e}"
             ) from e
+
+    def _convert_xbrl_to_statements(
+        self,
+        fs_data: Any,
+        bsns_year: str,
+        fs_div: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Convert XBRL financial statement data to list of dictionaries.
+
+        Args:
+            fs_data: Financial statement data from dart_fss.fs.extract()
+            bsns_year: Target business year
+            fs_div: Financial statement division filter (CFS/OFS)
+
+        Returns:
+            List of financial statement items as dictionaries.
+        """
+        statements = []
+
+        # Financial statement type mapping
+        fs_types = {
+            "bs": "재무상태표",
+            "is": "손익계산서",
+            "cis": "포괄손익계산서",
+            "cf": "현금흐름표",
+        }
+
+        for fs_key, fs_name in fs_types.items():
+            try:
+                # Get DataFrame for this statement type
+                df = fs_data.show(fs_key) if hasattr(fs_data, "show") else fs_data.get(fs_key)
+
+                if df is None or (hasattr(df, "empty") and df.empty):
+                    continue
+
+                # Determine fs_div (CFS for consolidated, OFS for separate)
+                # dart_fss returns consolidated by default
+                current_fs_div = "CFS"
+
+                # Filter by fs_div if specified
+                if fs_div and current_fs_div != fs_div:
+                    continue
+
+                # Convert DataFrame rows to statement dictionaries
+                for idx, row in df.iterrows():
+                    # Find the column for the target year
+                    amount = None
+                    for col in df.columns:
+                        if bsns_year in str(col):
+                            amount = row.get(col)
+                            break
+
+                    # If no year-specific column, use first numeric column
+                    if amount is None:
+                        for col in df.columns:
+                            val = row.get(col)
+                            if isinstance(val, (int, float)) and not isinstance(val, bool):
+                                amount = val
+                                break
+
+                    statement = {
+                        "sj_div": fs_key.upper(),
+                        "sj_nm": fs_name,
+                        "account_id": str(idx) if idx else "",
+                        "account_nm": row.get("label_ko", row.get("concept_id", str(idx))),
+                        "account_detail": row.get("label_en", ""),
+                        "thstrm_nm": f"{bsns_year}년",
+                        "thstrm_amount": str(amount) if amount is not None else "",
+                        "fs_div": current_fs_div,
+                        "fs_nm": "연결재무제표" if current_fs_div == "CFS" else "재무제표",
+                        "bsns_year": bsns_year,
+                    }
+                    statements.append(statement)
+
+            except Exception:
+                # Skip this statement type if extraction fails
+                continue
+
+        return statements
 
     async def search_corporations(self, query: str) -> list[dict[str, Any]]:
         """Search corporations by name.
