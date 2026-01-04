@@ -105,12 +105,12 @@ def create_app(page: ft.Page) -> None:
                 return idx
         return 0
 
-    def on_nav_change(index: int) -> None:
+    async def on_nav_change(index: int) -> None:
         """Handle navigation change."""
         nonlocal selected_index
         selected_index = index
         route = NAV_ROUTES.get(index, "/")
-        page.push_route(route)
+        await page.push_route(route)
 
     def build_layout() -> ft.Control:
         """Build the main layout with navigation."""
