@@ -1,12 +1,13 @@
 """Settings view - Application configuration and data synchronization."""
 
 import asyncio
-import logging
 from datetime import datetime
 
 import flet as ft
 
-logger = logging.getLogger(__name__)
+from src.utils.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 from src.models.database import get_engine, get_session
 from src.services.corporation_service import CorporationService

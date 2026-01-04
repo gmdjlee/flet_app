@@ -10,6 +10,9 @@ from sqlalchemy.orm import Session
 from src.models.corporation import Corporation
 from src.services.analysis_service import AnalysisService
 from src.services.financial_service import FinancialService
+from src.utils.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 class CompareService:
@@ -74,18 +77,22 @@ class CompareService:
         """
         # Check if already at max limit
         if len(self._selected_corporations) >= self.MAX_CORPORATIONS:
+            logger.warning(f"Cannot add {corp_code}: max corporations limit reached")
             return False
 
         # Check if already selected
         if corp_code in self._selected_corporations:
+            logger.debug(f"Corporation {corp_code} already in comparison list")
             return False
 
         # Verify corporation exists in database
         corp = self.session.query(Corporation).filter(Corporation.corp_code == corp_code).first()
         if corp is None:
+            logger.warning(f"Corporation not found: {corp_code}")
             return False
 
         self._selected_corporations.append(corp_code)
+        logger.info(f"Added corporation to comparison: {corp_code}")
         return True
 
     def remove_corporation(self, corp_code: str) -> bool:

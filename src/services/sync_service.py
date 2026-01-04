@@ -2,7 +2,6 @@
 
 import asyncio
 import json
-import logging
 import os
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
@@ -17,8 +16,9 @@ from src.models.corporation import Corporation
 from src.models.financial_statement import FinancialStatement
 from src.services.corporation_service import CorporationService
 from src.services.dart_service import DartService, DartServiceError
+from src.utils.logging_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Default data directory for logs and settings
 DATA_DIR = Path.home() / ".dart-db-flet" / "data"

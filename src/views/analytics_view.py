@@ -16,6 +16,9 @@ from src.services.analysis_service import AnalysisService
 from src.services.corporation_service import CorporationService
 from src.services.financial_service import FinancialService
 from src.utils.formatters import format_amount_short
+from src.utils.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 class AnalyticsView(ft.View):

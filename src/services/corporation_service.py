@@ -6,6 +6,9 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from src.models.corporation import Corporation
+from src.utils.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 class CorporationService:
@@ -35,10 +38,12 @@ class CorporationService:
         Returns:
             Created Corporation instance.
         """
+        logger.debug(f"Creating corporation: {data.get('corp_code')}")
         corp = Corporation(**data)
         self.session.add(corp)
         self.session.commit()
         self.session.refresh(corp)
+        logger.info(f"Corporation created: {corp.corp_code} ({corp.corp_name})")
         return corp
 
     def get_by_corp_code(self, corp_code: str) -> Corporation | None:
@@ -234,6 +239,7 @@ class CorporationService:
         """
         corp_code = data.get("corp_code")
         if not corp_code:
+            logger.error("corp_code is required for upsert")
             raise ValueError("corp_code is required for upsert")
 
         try:
@@ -246,6 +252,7 @@ class CorporationService:
                         setattr(existing, key, value)
                 self.session.commit()
                 self.session.refresh(existing)
+                logger.debug(f"Corporation updated: {corp_code}")
                 return existing
             else:
                 # Create new record - filter out None values for NOT NULL columns
@@ -254,7 +261,8 @@ class CorporationService:
                 if "corp_cls" not in filtered_data:
                     filtered_data["corp_cls"] = "E"
                 return self.create(filtered_data)
-        except Exception:
+        except Exception as e:
+            logger.error(f"Failed to upsert corporation {corp_code}: {e}")
             self.session.rollback()
             raise
 
@@ -285,10 +293,12 @@ class CorporationService:
         """
         corp = self.get_by_corp_code(corp_code)
         if corp is None:
+            logger.warning(f"Corporation not found for deletion: {corp_code}")
             return False
 
         self.session.delete(corp)
         self.session.commit()
+        logger.info(f"Corporation deleted: {corp_code}")
         return True
 
     def delete_all(self) -> int:
@@ -300,6 +310,7 @@ class CorporationService:
         count = self.session.query(Corporation).count()
         self.session.query(Corporation).delete()
         self.session.commit()
+        logger.info(f"Deleted all {count} corporations")
         return count
 
     def count(self, listed_only: bool = False) -> int:

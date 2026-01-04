@@ -19,6 +19,9 @@ from src.utils.formatters import (
     get_growth_color,
     get_ratio_status,
 )
+from src.utils.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 class DetailView(ft.View):

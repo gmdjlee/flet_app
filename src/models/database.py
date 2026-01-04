@@ -6,6 +6,10 @@ from sqlalchemy import create_engine, event
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
+from src.utils.logging_config import get_logger
+
+logger = get_logger(__name__)
+
 
 class Base(DeclarativeBase):
     """Base class for all SQLAlchemy models."""
@@ -55,6 +59,7 @@ def get_engine(db_path: str | None = None) -> Engine:
         Path(db_path).parent.mkdir(parents=True, exist_ok=True)
 
     url = f"sqlite:///{db_path}" if db_path != ":memory:" else "sqlite:///:memory:"
+    logger.debug(f"Creating database engine: {db_path}")
     return create_engine(url, echo=False, pool_pre_ping=True)
 
 
@@ -81,6 +86,7 @@ def init_db(db_path: str | None = None) -> Engine:
     Returns:
         SQLAlchemy Engine instance.
     """
+    logger.info("Initializing database")
     # Import models to register them with Base
     from src.models.corporation import Corporation  # noqa: F401
     from src.models.filing import Filing  # noqa: F401
@@ -88,4 +94,5 @@ def init_db(db_path: str | None = None) -> Engine:
 
     engine = get_engine(db_path)
     Base.metadata.create_all(engine)
+    logger.info("Database initialized successfully")
     return engine

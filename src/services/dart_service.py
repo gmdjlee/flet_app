@@ -4,10 +4,14 @@ import asyncio
 import os
 from typing import Any
 
+from src.utils.logging_config import get_logger
+
 try:
     import dart_fss
 except ImportError:
     dart_fss = None  # Will be mocked in tests
+
+logger = get_logger(__name__)
 
 
 class DartServiceError(Exception):
@@ -51,6 +55,7 @@ class DartService:
         self.api_key = api_key or os.getenv("DART_API_KEY")
 
         if not self.api_key:
+            logger.error("DART API key not provided and not found in environment")
             raise ValueError(
                 "API key is required. Provide api_key parameter or set DART_API_KEY environment variable."
             )
@@ -58,6 +63,7 @@ class DartService:
         # Initialize dart-fss with API key
         if dart_fss is not None:
             dart_fss.set_api_key(self.api_key)
+            logger.info("DART service initialized with API key")
 
     def _corp_to_dict(self, corp: Any) -> dict[str, Any]:
         """Convert Corp object to dictionary.
@@ -98,6 +104,7 @@ class DartService:
         Raises:
             DartServiceError: If API call fails.
         """
+        logger.info(f"Fetching corporation list from DART API (market={market})")
         try:
             # Run synchronous dart-fss call in thread pool
             loop = asyncio.get_event_loop()
@@ -105,15 +112,19 @@ class DartService:
 
             # Convert Corp objects to dicts
             corps = [self._corp_to_dict(c) for c in corps]
+            logger.debug(f"Retrieved {len(corps)} corporations from DART")
 
             # Filter by market if specified
             if market and market in self.MARKET_TO_CORP_CLS:
                 target_cls = self.MARKET_TO_CORP_CLS[market]
                 corps = [c for c in corps if c.get("corp_cls") == target_cls]
+                logger.debug(f"Filtered to {len(corps)} corporations for market {market}")
 
+            logger.info(f"Corporation list fetched successfully: {len(corps)} corporations")
             return corps
 
         except Exception as e:
+            logger.error(f"Failed to fetch corporation list: {e}")
             raise DartServiceError(f"Failed to fetch corporation list: {e}") from e
 
     async def get_corporation_info(self, corp_code: str) -> dict[str, Any]:
@@ -130,14 +141,18 @@ class DartService:
             ValueError: If corp_code is invalid.
         """
         if not self.validate_corp_code(corp_code):
+            logger.warning(f"Invalid corp_code format: {corp_code}")
             raise ValueError(f"Invalid corp_code format: {corp_code}")
 
+        logger.debug(f"Fetching corporation info for {corp_code}")
         try:
             loop = asyncio.get_event_loop()
             info = await loop.run_in_executor(None, lambda: dart_fss.get_corp_info(corp_code))
+            logger.debug(f"Corporation info fetched for {corp_code}")
             return info
 
         except Exception as e:
+            logger.error(f"Failed to fetch corporation info for {corp_code}: {e}")
             raise DartServiceError(f"Failed to fetch corporation info for {corp_code}: {e}") from e
 
     # Report code to pblntf_detail_ty mapping for XBRL extraction
@@ -175,11 +190,14 @@ class DartService:
             ValueError: If parameters are invalid.
         """
         if not self.validate_corp_code(corp_code):
+            logger.warning(f"Invalid corp_code format: {corp_code}")
             raise ValueError(f"Invalid corp_code format: {corp_code}")
 
         if not self.validate_report_code(reprt_code):
+            logger.warning(f"Invalid report code: {reprt_code}")
             raise ValueError(f"Invalid report code: {reprt_code}")
 
+        logger.debug(f"Fetching financial statements for {corp_code}, year={bsns_year}, report={reprt_code}")
         try:
             loop = asyncio.get_event_loop()
 
@@ -227,9 +245,11 @@ class DartService:
                 )
 
             statements = await loop.run_in_executor(None, extract_xbrl_data)
+            logger.debug(f"Fetched {len(statements)} financial statement items for {corp_code}")
             return statements
 
         except Exception as e:
+            logger.error(f"Failed to fetch financial statements for {corp_code}: {e}")
             raise DartServiceError(
                 f"Failed to fetch financial statements for {corp_code}: {e}"
             ) from e
@@ -385,6 +405,7 @@ class DartService:
         Raises:
             DartServiceError: If API call fails.
         """
+        logger.debug(f"Searching corporations with query: {query}")
         try:
             # Fetch all corporations and filter by name
             all_corps = await self.get_corporation_list()
@@ -392,12 +413,14 @@ class DartService:
             # Filter by name (case-insensitive)
             query_lower = query.lower()
             results = [c for c in all_corps if query_lower in c.get("corp_name", "").lower()]
+            logger.debug(f"Search found {len(results)} matching corporations")
 
             return results
 
         except DartServiceError:
             raise
         except Exception as e:
+            logger.error(f"Failed to search corporations: {e}")
             raise DartServiceError(f"Failed to search corporations: {e}") from e
 
     async def get_filings(
@@ -422,8 +445,10 @@ class DartService:
             DartServiceError: If API call fails.
         """
         if not self.validate_corp_code(corp_code):
+            logger.warning(f"Invalid corp_code format: {corp_code}")
             raise ValueError(f"Invalid corp_code format: {corp_code}")
 
+        logger.debug(f"Fetching filings for {corp_code}, period={bgn_de}-{end_de}")
         try:
             loop = asyncio.get_event_loop()
             filings = await loop.run_in_executor(
@@ -435,9 +460,11 @@ class DartService:
                     pblntf_ty=pblntf_ty,
                 ),
             )
+            logger.debug(f"Fetched {len(filings)} filings for {corp_code}")
             return filings
 
         except Exception as e:
+            logger.error(f"Failed to fetch filings for {corp_code}: {e}")
             raise DartServiceError(f"Failed to fetch filings for {corp_code}: {e}") from e
 
     def validate_corp_code(self, corp_code: str) -> bool:

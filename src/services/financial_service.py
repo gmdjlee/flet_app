@@ -5,6 +5,9 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from src.models.financial_statement import FinancialStatement
+from src.utils.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 # Key account names used for financial analysis
 KEY_ACCOUNTS = [
@@ -326,6 +329,7 @@ class FinancialService:
         Returns:
             Dictionary with key metrics and ratios.
         """
+        logger.debug(f"Getting financial summary for {corp_code}, year={bsns_year}")
         summary = {
             "total_assets": self.get_account_value(corp_code, bsns_year, "자산총계", fs_div),
             "total_liabilities": self.get_account_value(corp_code, bsns_year, "부채총계", fs_div),
@@ -466,6 +470,7 @@ class FinancialService:
         Returns:
             Created FinancialStatement instance.
         """
+        logger.debug(f"Creating financial statement: {data.get('corp_code')}, {data.get('bsns_year')}")
         statement = FinancialStatement(**data)
         self.session.add(statement)
         self.session.commit()
@@ -525,6 +530,7 @@ class FinancialService:
         count = self.session.query(FinancialStatement).count()
         self.session.query(FinancialStatement).delete()
         self.session.commit()
+        logger.info(f"Deleted all {count} financial statements")
         return count
 
     def count(self) -> int:

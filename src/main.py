@@ -5,12 +5,17 @@ from collections.abc import Callable
 import flet as ft
 
 from src.components.navigation import create_navigation
+from src.utils.logging_config import setup_logging, get_logger
 from src.views.analytics_view import AnalyticsView
 from src.views.compare_view import CompareView
 from src.views.corporations_view import CorporationsView
 from src.views.detail_view import DetailView
 from src.views.home_view import HomeView
 from src.views.settings_view import SettingsView
+
+# Initialize logging at startup
+setup_logging()
+logger = get_logger(__name__)
 
 # Route definitions
 ROUTES: dict[str, Callable[[ft.Page], ft.View]] = {
@@ -87,13 +92,17 @@ def create_app(page: ft.Page) -> None:
     Args:
         page: Flet page instance
     """
+    logger.info("Starting DART-DB application")
+
     # Configure page
     configure_page(page)
+    logger.debug("Page configuration completed")
 
     # Initialize database
     from src.models.database import init_db
 
     init_db()
+    logger.debug("Database initialization completed")
 
     # Selected navigation index
     selected_index = 0
@@ -163,6 +172,7 @@ def create_app(page: ft.Page) -> None:
 
 def main() -> None:
     """Application entry point."""
+    logger.info("DART-DB application starting...")
     ft.run(create_app)
 
 
