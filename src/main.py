@@ -110,7 +110,7 @@ def create_app(page: ft.Page) -> None:
         nonlocal selected_index
         selected_index = index
         route = NAV_ROUTES.get(index, "/")
-        page.go(route)
+        page.push_route(route)
 
     def build_layout() -> ft.Control:
         """Build the main layout with navigation."""

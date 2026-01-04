@@ -172,10 +172,11 @@ class DartService:
 
         try:
             loop = asyncio.get_event_loop()
-            # Use dart_fss.api.finance.get_single_corp for financial statements
+            # Use dart_fss.api.finance.fnltt_singl_acnt for financial statements
+            # (단일회사 주요계정 - Single company main accounts)
             response = await loop.run_in_executor(
                 None,
-                lambda: dart_fss.api.finance.get_single_corp(
+                lambda: dart_fss.api.finance.fnltt_singl_acnt(
                     corp_code=corp_code,
                     bsns_year=bsns_year,
                     reprt_code=reprt_code,
