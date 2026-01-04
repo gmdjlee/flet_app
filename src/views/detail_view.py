@@ -74,13 +74,13 @@ class DetailView(ft.View):
         # Tab state
         self.selected_tab_index = 0
 
-        # Tab buttons - using Tabs for Flet 0.70+ compatibility
+        # Tab buttons - using Tabs for Flet 1.0+ compatibility
         self.tab_buttons = ft.Tabs(
             selected_index=0,
             tabs=[
-                ft.Tab(text="기본 정보", icon=ft.Icons.INFO_OUTLINED),
-                ft.Tab(text="재무제표", icon=ft.Icons.TABLE_CHART),
-                ft.Tab(text="재무비율", icon=ft.Icons.PIE_CHART),
+                ft.Tab(label="기본 정보", icon=ft.Icons.INFO_OUTLINED),
+                ft.Tab(label="재무제표", icon=ft.Icons.TABLE_CHART),
+                ft.Tab(label="재무비율", icon=ft.Icons.PIE_CHART),
             ],
             on_change=self._on_tab_change,
         )
