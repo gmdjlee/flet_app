@@ -140,12 +140,12 @@ class DartService:
         except Exception as e:
             raise DartServiceError(f"Failed to fetch corporation info for {corp_code}: {e}") from e
 
-    # Report code to report_tp mapping for XBRL extraction
-    REPORT_CODE_TO_TYPE = {
-        "11011": "annual",   # 사업보고서 (연간)
-        "11012": "half",     # 반기보고서
-        "11013": "quarter",  # 1분기보고서
-        "11014": "quarter",  # 3분기보고서
+    # Report code to pblntf_detail_ty mapping for XBRL extraction
+    REPORT_CODE_TO_PBLNTF = {
+        "11011": "a001",  # 사업보고서
+        "11012": "a002",  # 반기보고서
+        "11013": "a003",  # 1분기보고서
+        "11014": "a003",  # 3분기보고서
     }
 
     async def get_financial_statements(
@@ -157,8 +157,7 @@ class DartService:
     ) -> list[dict[str, Any]]:
         """Fetch financial statements for a corporation using XBRL extraction.
 
-        Uses dart_fss.fs.extract() to extract financial statements from XBRL data,
-        which provides more comprehensive and accurate financial data.
+        Uses dart-fss XBRL extraction via report.xbrl to get financial statements.
 
         Args:
             corp_code: DART corporation code (8 digits).
@@ -184,29 +183,50 @@ class DartService:
         try:
             loop = asyncio.get_event_loop()
 
-            # Calculate start date for the business year
-            bgn_de = f"{bsns_year}0101"
+            # Extract financial statements using XBRL from report
+            def extract_xbrl_data() -> list[dict[str, Any]]:
+                # Get corporation list and find target corporation
+                corp_list = dart_fss.get_corp_list()
+                corp = corp_list.find_by_corp_code(corp_code=corp_code)
 
-            # Map report code to report type
-            report_tp = self.REPORT_CODE_TO_TYPE.get(reprt_code, "annual")
+                if corp is None:
+                    return []
 
-            # Extract financial statements using XBRL
-            fs_data = await loop.run_in_executor(
-                None,
-                lambda: dart_fss.fs.extract(
-                    corp_code=corp_code,
+                # Map report code to pblntf_detail_ty
+                pblntf_detail_ty = self.REPORT_CODE_TO_PBLNTF.get(reprt_code, "a001")
+
+                # Calculate date range for the business year
+                bgn_de = f"{bsns_year}0101"
+                end_de = f"{bsns_year}1231"
+
+                # Search for filings (reports)
+                reports = corp.search_filings(
                     bgn_de=bgn_de,
-                    report_tp=report_tp,
-                    dataset="xbrl",  # Use XBRL data extraction
-                ),
-            )
+                    end_de=end_de,
+                    pblntf_detail_ty=pblntf_detail_ty,
+                )
 
-            if fs_data is None:
-                return []
+                if not reports or len(reports) == 0:
+                    return []
 
-            # Convert XBRL data to list of dictionaries
-            statements = self._convert_xbrl_to_statements(fs_data, bsns_year, fs_div)
+                # Get the first (most recent) report
+                report = reports[0]
 
+                # Get XBRL data from report
+                xbrl = report.xbrl
+
+                if xbrl is None:
+                    return []
+
+                # Check if consolidated financial statements exist
+                has_consolidated = xbrl.exist_consolidated()
+
+                # Extract all financial statement types
+                return self._extract_xbrl_statements(
+                    xbrl, bsns_year, fs_div, has_consolidated
+                )
+
+            statements = await loop.run_in_executor(None, extract_xbrl_data)
             return statements
 
         except Exception as e:
@@ -214,82 +234,142 @@ class DartService:
                 f"Failed to fetch financial statements for {corp_code}: {e}"
             ) from e
 
-    def _convert_xbrl_to_statements(
+    def _extract_xbrl_statements(
         self,
-        fs_data: Any,
+        xbrl: Any,
         bsns_year: str,
-        fs_div: str | None = None,
+        fs_div: str | None,
+        has_consolidated: bool,
     ) -> list[dict[str, Any]]:
-        """Convert XBRL financial statement data to list of dictionaries.
+        """Extract financial statements from XBRL data.
 
         Args:
-            fs_data: Financial statement data from dart_fss.fs.extract()
+            xbrl: XBRL data object from report.xbrl
             bsns_year: Target business year
             fs_div: Financial statement division filter (CFS/OFS)
+            has_consolidated: Whether consolidated statements exist
 
         Returns:
             List of financial statement items as dictionaries.
         """
         statements = []
 
-        # Financial statement type mapping
-        fs_types = {
-            "bs": "재무상태표",
-            "is": "손익계산서",
-            "cis": "포괄손익계산서",
-            "cf": "현금흐름표",
-        }
+        # Define extraction methods and their names
+        extraction_methods = [
+            ("get_financial_statement", "BS", "재무상태표"),
+            ("get_income_statement", "IS", "손익계산서"),
+            ("get_income_statement_cis", "CIS", "포괄손익계산서"),
+            ("get_cash_flows", "CF", "현금흐름표"),
+        ]
 
-        for fs_key, fs_name in fs_types.items():
+        for method_name, sj_div, sj_nm in extraction_methods:
             try:
-                # Get DataFrame for this statement type
-                df = fs_data.show(fs_key) if hasattr(fs_data, "show") else fs_data.get(fs_key)
-
-                if df is None or (hasattr(df, "empty") and df.empty):
+                # Get the extraction method
+                method = getattr(xbrl, method_name, None)
+                if method is None:
                     continue
 
-                # Determine fs_div (CFS for consolidated, OFS for separate)
-                # dart_fss returns consolidated by default
-                current_fs_div = "CFS"
+                # Call the method to get list of statements
+                fs_list = method()
 
-                # Filter by fs_div if specified
-                if fs_div and current_fs_div != fs_div:
+                if not fs_list:
                     continue
 
-                # Convert DataFrame rows to statement dictionaries
-                for idx, row in df.iterrows():
-                    # Find the column for the target year
-                    amount = None
-                    for col in df.columns:
-                        if bsns_year in str(col):
-                            amount = row.get(col)
-                            break
+                # Process each statement (consolidated and/or separate)
+                for idx, fs_item in enumerate(fs_list):
+                    # Determine if this is consolidated (first item) or separate
+                    # First item is typically consolidated if exists
+                    if has_consolidated:
+                        current_fs_div = "CFS" if idx == 0 else "OFS"
+                    else:
+                        current_fs_div = "OFS"
 
-                    # If no year-specific column, use first numeric column
-                    if amount is None:
-                        for col in df.columns:
-                            val = row.get(col)
-                            if isinstance(val, (int, float)) and not isinstance(val, bool):
-                                amount = val
-                                break
+                    # Filter by fs_div if specified
+                    if fs_div and current_fs_div != fs_div:
+                        continue
 
-                    statement = {
-                        "sj_div": fs_key.upper(),
-                        "sj_nm": fs_name,
-                        "account_id": str(idx) if idx else "",
-                        "account_nm": row.get("label_ko", row.get("concept_id", str(idx))),
-                        "account_detail": row.get("label_en", ""),
-                        "thstrm_nm": f"{bsns_year}년",
-                        "thstrm_amount": str(amount) if amount is not None else "",
-                        "fs_div": current_fs_div,
-                        "fs_nm": "연결재무제표" if current_fs_div == "CFS" else "재무제표",
-                        "bsns_year": bsns_year,
-                    }
-                    statements.append(statement)
+                    # Convert to DataFrame
+                    try:
+                        df = fs_item.to_DataFrame(show_class=False)
+                    except Exception:
+                        df = fs_item.to_DataFrame() if hasattr(fs_item, "to_DataFrame") else None
+
+                    if df is None or df.empty:
+                        continue
+
+                    # Convert DataFrame rows to statement dictionaries
+                    statements.extend(
+                        self._dataframe_to_statements(
+                            df, sj_div, sj_nm, bsns_year, current_fs_div
+                        )
+                    )
 
             except Exception:
                 # Skip this statement type if extraction fails
                 continue
+
+        return statements
+
+    def _dataframe_to_statements(
+        self,
+        df: Any,
+        sj_div: str,
+        sj_nm: str,
+        bsns_year: str,
+        fs_div: str,
+    ) -> list[dict[str, Any]]:
+        """Convert a DataFrame to list of statement dictionaries.
+
+        Args:
+            df: Pandas DataFrame with financial data
+            sj_div: Statement division code (BS, IS, CIS, CF)
+            sj_nm: Statement name in Korean
+            bsns_year: Target business year
+            fs_div: Financial statement division (CFS/OFS)
+
+        Returns:
+            List of statement dictionaries.
+        """
+        statements = []
+
+        for idx, row in df.iterrows():
+            # Find amount for the target year
+            amount = None
+            for col in df.columns:
+                col_str = str(col)
+                if bsns_year in col_str:
+                    val = row.get(col)
+                    if val is not None and not (isinstance(val, float) and str(val) == "nan"):
+                        amount = val
+                        break
+
+            # Get account name from index or label column
+            if isinstance(idx, tuple):
+                account_nm = str(idx[-1]) if idx else ""
+            else:
+                account_nm = str(idx) if idx else ""
+
+            # Try to get label from row if available
+            for label_col in ["label_ko", "concept_id", "account"]:
+                if label_col in df.columns:
+                    label_val = row.get(label_col)
+                    if label_val and str(label_val) != "nan":
+                        account_nm = str(label_val)
+                        break
+
+            statement = {
+                "sj_div": sj_div,
+                "sj_nm": sj_nm,
+                "account_id": str(idx) if idx else "",
+                "account_nm": account_nm,
+                "account_detail": "",
+                "thstrm_nm": f"{bsns_year}년",
+                "thstrm_amount": str(amount) if amount is not None else "",
+                "fs_div": fs_div,
+                "fs_nm": "연결재무제표" if fs_div == "CFS" else "재무제표",
+                "bsns_year": bsns_year,
+            }
+            statements.append(statement)
 
         return statements
 
