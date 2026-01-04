@@ -291,6 +291,17 @@ class CorporationService:
         self.session.commit()
         return True
 
+    def delete_all(self) -> int:
+        """Delete all corporation records.
+
+        Returns:
+            Number of records deleted.
+        """
+        count = self.session.query(Corporation).count()
+        self.session.query(Corporation).delete()
+        self.session.commit()
+        return count
+
     def count(self, listed_only: bool = False) -> int:
         """Count total corporations.
 

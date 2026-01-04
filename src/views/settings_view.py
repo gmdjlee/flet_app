@@ -6,7 +6,9 @@ from datetime import datetime
 import flet as ft
 
 from src.models.database import get_engine, get_session
+from src.services.corporation_service import CorporationService
 from src.services.dart_service import DartService
+from src.services.financial_service import FinancialService
 from src.services.sync_service import (
     CheckpointManager,
     SettingsManager,
@@ -374,6 +376,51 @@ class SettingsView(ft.View):
                                 ),
                             ],
                             spacing=10,
+                        ),
+                        ft.Divider(height=10),
+                        ft.Text(
+                            "데이터 초기화",
+                            size=16,
+                            weight=ft.FontWeight.W_500,
+                            color=ft.Colors.RED_700,
+                        ),
+                        ft.Text(
+                            "주의: 초기화된 데이터는 복구할 수 없습니다. 다시 동기화가 필요합니다.",
+                            size=12,
+                            color=ft.Colors.GREY_600,
+                        ),
+                        ft.Row(
+                            controls=[
+                                ft.Button(
+                                    "기업 목록 초기화",
+                                    icon=ft.Icons.DELETE_FOREVER,
+                                    on_click=self._on_reset_corporations,
+                                    style=ft.ButtonStyle(
+                                        bgcolor=ft.Colors.RED_100,
+                                        color=ft.Colors.RED_700,
+                                    ),
+                                ),
+                                ft.Button(
+                                    "재무제표 초기화",
+                                    icon=ft.Icons.DELETE_FOREVER,
+                                    on_click=self._on_reset_financials,
+                                    style=ft.ButtonStyle(
+                                        bgcolor=ft.Colors.RED_100,
+                                        color=ft.Colors.RED_700,
+                                    ),
+                                ),
+                                ft.Button(
+                                    "전체 데이터 초기화",
+                                    icon=ft.Icons.DELETE_FOREVER,
+                                    on_click=self._on_reset_all_data,
+                                    style=ft.ButtonStyle(
+                                        bgcolor=ft.Colors.RED_700,
+                                        color=ft.Colors.WHITE,
+                                    ),
+                                ),
+                            ],
+                            spacing=10,
+                            wrap=True,
                         ),
                     ],
                     spacing=10,
@@ -845,6 +892,199 @@ class SettingsView(ft.View):
             actions=[
                 ft.TextButton("취소", on_click=on_cancel),
                 ft.TextButton("삭제", on_click=on_confirm),
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
+        self._page_ref.dialog = dialog
+        dialog.open = True
+        self._page_ref.update()
+
+    def _on_reset_corporations(self, e: ft.ControlEvent) -> None:
+        """Handle reset corporations data event."""
+        engine = get_engine()
+        session = get_session(engine)
+        corp_service = CorporationService(session)
+        corp_count = corp_service.count()
+
+        def on_confirm(e: ft.ControlEvent) -> None:
+            try:
+                deleted_count = corp_service.delete_all()
+                # Also clear related checkpoints
+                self._checkpoint_manager.clear_checkpoint("corporation_list")
+                self._show_snackbar(f"기업 목록 {deleted_count}건이 초기화되었습니다.")
+                self._update_sync_status()
+            except Exception as ex:
+                self._show_snackbar(f"초기화 실패: {ex}", is_error=True)
+            finally:
+                session.close()
+                dialog.open = False
+                self._page_ref.update()
+
+        def on_cancel(e: ft.ControlEvent) -> None:
+            session.close()
+            dialog.open = False
+            self._page_ref.update()
+
+        dialog = ft.AlertDialog(
+            modal=True,
+            title=ft.Text("기업 목록 초기화"),
+            content=ft.Column(
+                controls=[
+                    ft.Text(f"현재 저장된 기업 수: {corp_count}개"),
+                    ft.Text(
+                        "모든 기업 목록 데이터를 삭제하시겠습니까?",
+                        weight=ft.FontWeight.BOLD,
+                    ),
+                    ft.Text(
+                        "이 작업은 되돌릴 수 없으며, 다시 동기화가 필요합니다.",
+                        color=ft.Colors.RED_700,
+                        size=12,
+                    ),
+                ],
+                spacing=10,
+                tight=True,
+            ),
+            actions=[
+                ft.TextButton("취소", on_click=on_cancel),
+                ft.TextButton(
+                    "초기화",
+                    on_click=on_confirm,
+                    style=ft.ButtonStyle(color=ft.Colors.RED_700),
+                ),
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
+        self._page_ref.dialog = dialog
+        dialog.open = True
+        self._page_ref.update()
+
+    def _on_reset_financials(self, e: ft.ControlEvent) -> None:
+        """Handle reset financial statements data event."""
+        engine = get_engine()
+        session = get_session(engine)
+        fin_service = FinancialService(session)
+        fin_count = fin_service.count()
+
+        def on_confirm(e: ft.ControlEvent) -> None:
+            try:
+                deleted_count = fin_service.delete_all()
+                # Also clear related checkpoints
+                self._checkpoint_manager.clear_checkpoint("financial_statements")
+                self._show_snackbar(f"재무제표 {deleted_count}건이 초기화되었습니다.")
+                self._update_sync_status()
+            except Exception as ex:
+                self._show_snackbar(f"초기화 실패: {ex}", is_error=True)
+            finally:
+                session.close()
+                dialog.open = False
+                self._page_ref.update()
+
+        def on_cancel(e: ft.ControlEvent) -> None:
+            session.close()
+            dialog.open = False
+            self._page_ref.update()
+
+        dialog = ft.AlertDialog(
+            modal=True,
+            title=ft.Text("재무제표 초기화"),
+            content=ft.Column(
+                controls=[
+                    ft.Text(f"현재 저장된 재무제표 수: {fin_count}개"),
+                    ft.Text(
+                        "모든 재무제표 데이터를 삭제하시겠습니까?",
+                        weight=ft.FontWeight.BOLD,
+                    ),
+                    ft.Text(
+                        "이 작업은 되돌릴 수 없으며, 다시 동기화가 필요합니다.",
+                        color=ft.Colors.RED_700,
+                        size=12,
+                    ),
+                ],
+                spacing=10,
+                tight=True,
+            ),
+            actions=[
+                ft.TextButton("취소", on_click=on_cancel),
+                ft.TextButton(
+                    "초기화",
+                    on_click=on_confirm,
+                    style=ft.ButtonStyle(color=ft.Colors.RED_700),
+                ),
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
+        self._page_ref.dialog = dialog
+        dialog.open = True
+        self._page_ref.update()
+
+    def _on_reset_all_data(self, e: ft.ControlEvent) -> None:
+        """Handle reset all data event."""
+        engine = get_engine()
+        session = get_session(engine)
+        corp_service = CorporationService(session)
+        fin_service = FinancialService(session)
+        corp_count = corp_service.count()
+        fin_count = fin_service.count()
+
+        def on_confirm(e: ft.ControlEvent) -> None:
+            try:
+                # Delete financial statements first (foreign key constraint)
+                deleted_fin = fin_service.delete_all()
+                deleted_corp = corp_service.delete_all()
+                # Clear all checkpoints
+                self._checkpoint_manager.clear_checkpoint("corporation_list")
+                self._checkpoint_manager.clear_checkpoint("financial_statements")
+                # Clear cache
+                self._cache_manager.clear()
+                self._show_snackbar(
+                    f"전체 데이터 초기화 완료: 기업 {deleted_corp}건, 재무제표 {deleted_fin}건"
+                )
+                self._update_sync_status()
+            except Exception as ex:
+                self._show_snackbar(f"초기화 실패: {ex}", is_error=True)
+            finally:
+                session.close()
+                dialog.open = False
+                self._page_ref.update()
+
+        def on_cancel(e: ft.ControlEvent) -> None:
+            session.close()
+            dialog.open = False
+            self._page_ref.update()
+
+        dialog = ft.AlertDialog(
+            modal=True,
+            title=ft.Text("전체 데이터 초기화", color=ft.Colors.RED_700),
+            content=ft.Column(
+                controls=[
+                    ft.Text(f"현재 저장된 기업 수: {corp_count}개"),
+                    ft.Text(f"현재 저장된 재무제표 수: {fin_count}개"),
+                    ft.Container(height=10),
+                    ft.Text(
+                        "모든 데이터를 삭제하시겠습니까?",
+                        weight=ft.FontWeight.BOLD,
+                    ),
+                    ft.Text(
+                        "기업 목록, 재무제표, 캐시가 모두 삭제됩니다.",
+                        color=ft.Colors.RED_700,
+                        size=12,
+                    ),
+                    ft.Text(
+                        "이 작업은 되돌릴 수 없으며, 다시 동기화가 필요합니다.",
+                        color=ft.Colors.RED_700,
+                        size=12,
+                    ),
+                ],
+                spacing=5,
+                tight=True,
+            ),
+            actions=[
+                ft.TextButton("취소", on_click=on_cancel),
+                ft.TextButton(
+                    "전체 초기화",
+                    on_click=on_confirm,
+                    style=ft.ButtonStyle(color=ft.Colors.RED_700),
+                ),
             ],
             actions_alignment=ft.MainAxisAlignment.END,
         )

@@ -515,3 +515,22 @@ class FinancialService:
         query.delete()
         self.session.commit()
         return count
+
+    def delete_all(self) -> int:
+        """Delete all financial statement records.
+
+        Returns:
+            Number of records deleted.
+        """
+        count = self.session.query(FinancialStatement).count()
+        self.session.query(FinancialStatement).delete()
+        self.session.commit()
+        return count
+
+    def count(self) -> int:
+        """Count total financial statement records.
+
+        Returns:
+            Total count.
+        """
+        return self.session.query(FinancialStatement).count()
