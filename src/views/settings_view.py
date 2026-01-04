@@ -203,8 +203,11 @@ class SettingsView(ft.View):
                     ft.Container(height=30),  # Bottom padding for scroll
                 ],
                 spacing=10,
+                scroll=ft.ScrollMode.AUTO,
+                expand=True,
             ),
             padding=30,
+            expand=True,
         )
 
     def _build_api_section(self) -> ft.Control:
