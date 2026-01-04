@@ -1,9 +1,12 @@
 """Settings view - Application configuration and data synchronization."""
 
 import asyncio
+import logging
 from datetime import datetime
 
 import flet as ft
+
+logger = logging.getLogger(__name__)
 
 from src.models.database import get_engine, get_session
 from src.services.corporation_service import CorporationService
@@ -877,14 +880,52 @@ class SettingsView(ft.View):
 
     def _on_clear_cache(self, e: ft.ControlEvent) -> None:
         """Handle clear cache event."""
+        logger.info("캐시 삭제 요청됨")
 
-        def on_confirm(e: ft.ControlEvent) -> None:
-            self._cache_manager.clear()
-            self._show_snackbar("캐시가 삭제되었습니다.")
-            dialog.open = False
+        def show_result_dialog(success: bool) -> None:
+            """Show result dialog after cache clear."""
+
+            def close_result(e: ft.ControlEvent) -> None:
+                result_dialog.open = False
+                self._page_ref.update()
+
+            if success:
+                result_dialog = ft.AlertDialog(
+                    modal=True,
+                    title=ft.Text("캐시 삭제 완료"),
+                    content=ft.Text("캐시가 성공적으로 삭제되었습니다."),
+                    actions=[ft.TextButton("확인", on_click=close_result)],
+                    actions_alignment=ft.MainAxisAlignment.END,
+                )
+            else:
+                result_dialog = ft.AlertDialog(
+                    modal=True,
+                    title=ft.Text("캐시 삭제 실패", color=ft.Colors.RED_700),
+                    content=ft.Text("캐시 삭제 중 오류가 발생했습니다."),
+                    actions=[ft.TextButton("확인", on_click=close_result)],
+                    actions_alignment=ft.MainAxisAlignment.END,
+                )
+            self._page_ref.dialog = result_dialog
+            result_dialog.open = True
             self._page_ref.update()
 
+        def on_confirm(e: ft.ControlEvent) -> None:
+            logger.info("캐시 삭제 확인됨 - 삭제 시작")
+            dialog.open = False
+            self._page_ref.update()
+            try:
+                result = self._cache_manager.clear()
+                if result:
+                    logger.info("캐시 삭제 완료")
+                else:
+                    logger.warning("캐시 삭제 실패")
+                show_result_dialog(result)
+            except Exception as ex:
+                logger.error(f"캐시 삭제 중 오류 발생: {ex}")
+                show_result_dialog(False)
+
         def on_cancel(e: ft.ControlEvent) -> None:
+            logger.info("캐시 삭제 취소됨")
             dialog.open = False
             self._page_ref.update()
 
@@ -904,26 +945,60 @@ class SettingsView(ft.View):
 
     def _on_reset_corporations(self, e: ft.ControlEvent) -> None:
         """Handle reset corporations data event."""
+        logger.info("기업 목록 초기화 요청됨")
         engine = get_engine()
         session = get_session(engine)
         corp_service = CorporationService(session)
         corp_count = corp_service.count()
+        logger.info(f"현재 기업 목록 수: {corp_count}개")
 
-        def on_confirm(e: ft.ControlEvent) -> None:
-            try:
-                deleted_count = corp_service.delete_all()
-                # Also clear related checkpoints
-                self._checkpoint_manager.clear_checkpoint("corporation_list")
-                self._show_snackbar(f"기업 목록 {deleted_count}건이 초기화되었습니다.")
-                self._update_sync_status()
-            except Exception as ex:
-                self._show_snackbar(f"초기화 실패: {ex}", is_error=True)
-            finally:
-                session.close()
-                dialog.open = False
+        def show_result_dialog(success: bool, deleted_count: int = 0, error_msg: str = "") -> None:
+            """Show result dialog after reset."""
+
+            def close_result(e: ft.ControlEvent) -> None:
+                result_dialog.open = False
                 self._page_ref.update()
 
+            if success:
+                result_dialog = ft.AlertDialog(
+                    modal=True,
+                    title=ft.Text("기업 목록 초기화 완료"),
+                    content=ft.Text(f"기업 목록 {deleted_count}건이 성공적으로 초기화되었습니다."),
+                    actions=[ft.TextButton("확인", on_click=close_result)],
+                    actions_alignment=ft.MainAxisAlignment.END,
+                )
+            else:
+                result_dialog = ft.AlertDialog(
+                    modal=True,
+                    title=ft.Text("기업 목록 초기화 실패", color=ft.Colors.RED_700),
+                    content=ft.Text(f"초기화 중 오류가 발생했습니다: {error_msg}"),
+                    actions=[ft.TextButton("확인", on_click=close_result)],
+                    actions_alignment=ft.MainAxisAlignment.END,
+                )
+            self._page_ref.dialog = result_dialog
+            result_dialog.open = True
+            self._page_ref.update()
+
+        def on_confirm(e: ft.ControlEvent) -> None:
+            logger.info("기업 목록 초기화 확인됨 - 초기화 시작")
+            dialog.open = False
+            self._page_ref.update()
+            try:
+                deleted_count = corp_service.delete_all()
+                logger.info(f"기업 목록 {deleted_count}건 삭제 완료")
+                # Also clear related checkpoints
+                self._checkpoint_manager.clear_checkpoint("corporation_list")
+                logger.info("기업 목록 체크포인트 초기화 완료")
+                self._update_sync_status()
+                show_result_dialog(True, deleted_count)
+            except Exception as ex:
+                logger.error(f"기업 목록 초기화 중 오류 발생: {ex}")
+                show_result_dialog(False, error_msg=str(ex))
+            finally:
+                session.close()
+
         def on_cancel(e: ft.ControlEvent) -> None:
+            logger.info("기업 목록 초기화 취소됨")
             session.close()
             dialog.open = False
             self._page_ref.update()
@@ -963,26 +1038,60 @@ class SettingsView(ft.View):
 
     def _on_reset_financials(self, e: ft.ControlEvent) -> None:
         """Handle reset financial statements data event."""
+        logger.info("재무제표 초기화 요청됨")
         engine = get_engine()
         session = get_session(engine)
         fin_service = FinancialService(session)
         fin_count = fin_service.count()
+        logger.info(f"현재 재무제표 수: {fin_count}개")
 
-        def on_confirm(e: ft.ControlEvent) -> None:
-            try:
-                deleted_count = fin_service.delete_all()
-                # Also clear related checkpoints
-                self._checkpoint_manager.clear_checkpoint("financial_statements")
-                self._show_snackbar(f"재무제표 {deleted_count}건이 초기화되었습니다.")
-                self._update_sync_status()
-            except Exception as ex:
-                self._show_snackbar(f"초기화 실패: {ex}", is_error=True)
-            finally:
-                session.close()
-                dialog.open = False
+        def show_result_dialog(success: bool, deleted_count: int = 0, error_msg: str = "") -> None:
+            """Show result dialog after reset."""
+
+            def close_result(e: ft.ControlEvent) -> None:
+                result_dialog.open = False
                 self._page_ref.update()
 
+            if success:
+                result_dialog = ft.AlertDialog(
+                    modal=True,
+                    title=ft.Text("재무제표 초기화 완료"),
+                    content=ft.Text(f"재무제표 {deleted_count}건이 성공적으로 초기화되었습니다."),
+                    actions=[ft.TextButton("확인", on_click=close_result)],
+                    actions_alignment=ft.MainAxisAlignment.END,
+                )
+            else:
+                result_dialog = ft.AlertDialog(
+                    modal=True,
+                    title=ft.Text("재무제표 초기화 실패", color=ft.Colors.RED_700),
+                    content=ft.Text(f"초기화 중 오류가 발생했습니다: {error_msg}"),
+                    actions=[ft.TextButton("확인", on_click=close_result)],
+                    actions_alignment=ft.MainAxisAlignment.END,
+                )
+            self._page_ref.dialog = result_dialog
+            result_dialog.open = True
+            self._page_ref.update()
+
+        def on_confirm(e: ft.ControlEvent) -> None:
+            logger.info("재무제표 초기화 확인됨 - 초기화 시작")
+            dialog.open = False
+            self._page_ref.update()
+            try:
+                deleted_count = fin_service.delete_all()
+                logger.info(f"재무제표 {deleted_count}건 삭제 완료")
+                # Also clear related checkpoints
+                self._checkpoint_manager.clear_checkpoint("financial_statements")
+                logger.info("재무제표 체크포인트 초기화 완료")
+                self._update_sync_status()
+                show_result_dialog(True, deleted_count)
+            except Exception as ex:
+                logger.error(f"재무제표 초기화 중 오류 발생: {ex}")
+                show_result_dialog(False, error_msg=str(ex))
+            finally:
+                session.close()
+
         def on_cancel(e: ft.ControlEvent) -> None:
+            logger.info("재무제표 초기화 취소됨")
             session.close()
             dialog.open = False
             self._page_ref.update()
@@ -1022,35 +1131,83 @@ class SettingsView(ft.View):
 
     def _on_reset_all_data(self, e: ft.ControlEvent) -> None:
         """Handle reset all data event."""
+        logger.info("전체 데이터 초기화 요청됨")
         engine = get_engine()
         session = get_session(engine)
         corp_service = CorporationService(session)
         fin_service = FinancialService(session)
         corp_count = corp_service.count()
         fin_count = fin_service.count()
+        logger.info(f"현재 기업 수: {corp_count}개, 재무제표 수: {fin_count}개")
+
+        def show_result_dialog(
+            success: bool,
+            deleted_corp: int = 0,
+            deleted_fin: int = 0,
+            error_msg: str = "",
+        ) -> None:
+            """Show result dialog after reset."""
+
+            def close_result(e: ft.ControlEvent) -> None:
+                result_dialog.open = False
+                self._page_ref.update()
+
+            if success:
+                result_dialog = ft.AlertDialog(
+                    modal=True,
+                    title=ft.Text("전체 데이터 초기화 완료"),
+                    content=ft.Column(
+                        controls=[
+                            ft.Text("모든 데이터가 성공적으로 초기화되었습니다."),
+                            ft.Text(f"삭제된 기업: {deleted_corp}건"),
+                            ft.Text(f"삭제된 재무제표: {deleted_fin}건"),
+                        ],
+                        spacing=5,
+                        tight=True,
+                    ),
+                    actions=[ft.TextButton("확인", on_click=close_result)],
+                    actions_alignment=ft.MainAxisAlignment.END,
+                )
+            else:
+                result_dialog = ft.AlertDialog(
+                    modal=True,
+                    title=ft.Text("전체 데이터 초기화 실패", color=ft.Colors.RED_700),
+                    content=ft.Text(f"초기화 중 오류가 발생했습니다: {error_msg}"),
+                    actions=[ft.TextButton("확인", on_click=close_result)],
+                    actions_alignment=ft.MainAxisAlignment.END,
+                )
+            self._page_ref.dialog = result_dialog
+            result_dialog.open = True
+            self._page_ref.update()
 
         def on_confirm(e: ft.ControlEvent) -> None:
+            logger.info("전체 데이터 초기화 확인됨 - 초기화 시작")
+            dialog.open = False
+            self._page_ref.update()
             try:
                 # Delete financial statements first (foreign key constraint)
                 deleted_fin = fin_service.delete_all()
+                logger.info(f"재무제표 {deleted_fin}건 삭제 완료")
                 deleted_corp = corp_service.delete_all()
+                logger.info(f"기업 목록 {deleted_corp}건 삭제 완료")
                 # Clear all checkpoints
                 self._checkpoint_manager.clear_checkpoint("corporation_list")
                 self._checkpoint_manager.clear_checkpoint("financial_statements")
+                logger.info("모든 체크포인트 초기화 완료")
                 # Clear cache
                 self._cache_manager.clear()
-                self._show_snackbar(
-                    f"전체 데이터 초기화 완료: 기업 {deleted_corp}건, 재무제표 {deleted_fin}건"
-                )
+                logger.info("캐시 삭제 완료")
+                logger.info("전체 데이터 초기화 완료")
                 self._update_sync_status()
+                show_result_dialog(True, deleted_corp, deleted_fin)
             except Exception as ex:
-                self._show_snackbar(f"초기화 실패: {ex}", is_error=True)
+                logger.error(f"전체 데이터 초기화 중 오류 발생: {ex}")
+                show_result_dialog(False, error_msg=str(ex))
             finally:
                 session.close()
-                dialog.open = False
-                self._page_ref.update()
 
         def on_cancel(e: ft.ControlEvent) -> None:
+            logger.info("전체 데이터 초기화 취소됨")
             session.close()
             dialog.open = False
             self._page_ref.update()
