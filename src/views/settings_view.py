@@ -905,7 +905,7 @@ class SettingsView(ft.View):
                     actions=[ft.TextButton("확인", on_click=close_result)],
                     actions_alignment=ft.MainAxisAlignment.END,
                 )
-            self._page_ref.dialog = result_dialog
+            self._page_ref.overlay.append(result_dialog)
             result_dialog.open = True
             self._page_ref.update()
 
@@ -939,7 +939,7 @@ class SettingsView(ft.View):
             ],
             actions_alignment=ft.MainAxisAlignment.END,
         )
-        self._page_ref.dialog = dialog
+        self._page_ref.overlay.append(dialog)
         dialog.open = True
         self._page_ref.update()
 
@@ -975,7 +975,7 @@ class SettingsView(ft.View):
                     actions=[ft.TextButton("확인", on_click=close_result)],
                     actions_alignment=ft.MainAxisAlignment.END,
                 )
-            self._page_ref.dialog = result_dialog
+            self._page_ref.overlay.append(result_dialog)
             result_dialog.open = True
             self._page_ref.update()
 
@@ -1032,7 +1032,7 @@ class SettingsView(ft.View):
             ],
             actions_alignment=ft.MainAxisAlignment.END,
         )
-        self._page_ref.dialog = dialog
+        self._page_ref.overlay.append(dialog)
         dialog.open = True
         self._page_ref.update()
 
@@ -1068,7 +1068,7 @@ class SettingsView(ft.View):
                     actions=[ft.TextButton("확인", on_click=close_result)],
                     actions_alignment=ft.MainAxisAlignment.END,
                 )
-            self._page_ref.dialog = result_dialog
+            self._page_ref.overlay.append(result_dialog)
             result_dialog.open = True
             self._page_ref.update()
 
@@ -1125,7 +1125,7 @@ class SettingsView(ft.View):
             ],
             actions_alignment=ft.MainAxisAlignment.END,
         )
-        self._page_ref.dialog = dialog
+        self._page_ref.overlay.append(dialog)
         dialog.open = True
         self._page_ref.update()
 
@@ -1176,7 +1176,7 @@ class SettingsView(ft.View):
                     actions=[ft.TextButton("확인", on_click=close_result)],
                     actions_alignment=ft.MainAxisAlignment.END,
                 )
-            self._page_ref.dialog = result_dialog
+            self._page_ref.overlay.append(result_dialog)
             result_dialog.open = True
             self._page_ref.update()
 
@@ -1248,6 +1248,6 @@ class SettingsView(ft.View):
             ],
             actions_alignment=ft.MainAxisAlignment.END,
         )
-        self._page_ref.dialog = dialog
+        self._page_ref.overlay.append(dialog)
         dialog.open = True
         self._page_ref.update()
