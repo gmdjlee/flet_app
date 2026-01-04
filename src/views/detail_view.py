@@ -74,8 +74,8 @@ class DetailView(ft.View):
         # Tab state
         self.selected_tab_index = 0
 
-        # Tab buttons - using Tabs for Flet 1.0+ compatibility
-        self.tab_buttons = ft.Tabs(
+        # Tab buttons - using TabBar for Flet 1.0+ compatibility
+        self.tab_buttons = ft.TabBar(
             selected_index=0,
             tabs=[
                 ft.Tab(label="기본 정보", icon=ft.Icons.INFO_OUTLINED),
