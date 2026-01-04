@@ -200,11 +200,11 @@ class SettingsView(ft.View):
                     self._build_logs_section(),
                     ft.Divider(height=20),
                     self._build_data_section(),
+                    ft.Container(height=30),  # Bottom padding for scroll
                 ],
                 spacing=10,
             ),
             padding=30,
-            expand=True,
         )
 
     def _build_api_section(self) -> ft.Control:
